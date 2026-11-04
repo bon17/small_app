@@ -86,11 +86,11 @@ tbody tr.is-focus td{box-shadow:inset 0 2px 0 var(--pink),inset 0 -2px 0 var(--p
 tbody tr.is-focus td:first-child{box-shadow:inset 2px 2px 0 var(--pink),inset 0 -2px 0 var(--pink)}
 th.chk,td.chk{width:40px;text-align:center}
 input[type=checkbox]{width:17px;height:17px;accent-color:var(--pink-deep);cursor:pointer;vertical-align:middle}
-td.num{color:var(--muted);font-variant-numeric:tabular-nums;width:56px}
-td.sid{font-variant-numeric:tabular-nums}
+td.sid{font-variant-numeric:tabular-nums;width:90px}
 td.nm{font-family:var(--font-cute);font-size:17px}
-.badge{display:inline-block;font-family:var(--font-ui);font-size:12px;line-height:1.3;padding:2px 8px;border-radius:999px;background:#F3EDF6;color:var(--ink-soft);white-space:nowrap}
-.badge.dup{background:var(--yellow-soft);color:#7A5600;margin-left:6px}
+th.cnt,td.cnt{text-align:right;width:80px;padding-right:16px}
+td.cnt{font-family:var(--font-cute);font-size:17px;color:var(--pink-deep)}
+.src-row{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;margin-top:12px}
 .empty{color:var(--muted);text-align:center;padding:26px 10px;margin:0;border:1px dashed var(--line);border-radius:12px}
 
 .preview-stage{background:#fff;border:1px dashed #D9CCD6;border-radius:12px;padding:14px}
@@ -112,8 +112,7 @@ td.nm{font-family:var(--font-cute);font-size:17px}
   .fields{grid-template-columns:minmax(0,1fr)}
   h2{flex-wrap:wrap}
   h2 .aside{flex-basis:100%;margin-left:0}
-  .list-tools{flex-direction:column}
-  .list-tools select{width:100%}
+  .src-row{grid-template-columns:minmax(0,1fr)}
 }
 
 /* ───────────── 쿠폰 ─────────────
@@ -144,6 +143,7 @@ td.nm{font-family:var(--font-cute);font-size:17px}
 .c-who{display:flex;align-items:center;gap:calc(var(--u) * 2.6);max-width:100%;min-width:0}
 .c-id{flex:none;font-size:calc(var(--u) * 8);line-height:1;padding:calc(var(--u) * 1.4) calc(var(--u) * 2.8);border:calc(var(--u) * .6) solid var(--ink);border-radius:999px;background:#fff}
 .c-name{font-size:calc(var(--u) * 19);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.c-seq{flex:none;font-size:calc(var(--u) * 6);line-height:1;padding:calc(var(--u) * 1.2) calc(var(--u) * 2.3);border-radius:999px;background:#FFDCE8;color:#C2386C}
 .c-name.l5{font-size:calc(var(--u) * 15)}
 .c-name.l7{font-size:calc(var(--u) * 11.5)}
 .c-msg{font-size:calc(var(--u) * 8.2);line-height:1.2;word-break:keep-all;overflow-wrap:anywhere}
@@ -195,10 +195,11 @@ td.nm{font-family:var(--font-cute);font-size:17px}
         </label>
         <p class="hint">구글시트에서 <b>파일 → 다운로드 → Microsoft Excel(.xlsx)</b>로 저장한 파일을 넣으세요. '학번', '이름' 제목이 있는 줄을 찾아서 읽어요. 파일은 이 컴퓨터 안에서만 읽고, 어디로도 보내지 않아요.</p>
         <div id="fileStatus" class="status" hidden></div>
+        <div class="src-row" id="srcRow" hidden>
+          <label class="field" id="sheetField">시트<select id="sheetSel"></select></label>
+          <label class="field">쿠폰 장수<select id="countSel"></select></label>
+        </div>
         <div class="row-between">
-          <label class="field" id="sheetField" hidden style="flex-direction:row;align-items:center;gap:8px;white-space:nowrap">시트
-            <select id="sheetSel"></select>
-          </label>
           <button type="button" class="link" id="demo">예시 명단으로 둘러보기</button>
         </div>
       </section>
@@ -237,14 +238,13 @@ td.nm{font-family:var(--font-cute);font-size:17px}
         <h2 id="h-list"><span class="num">3</span>학생 고르기<span class="aside">줄을 누르면 선택되고 미리보기가 바뀌어요</span></h2>
         <div class="list-tools" id="listTools" hidden>
           <input type="search" id="search" placeholder="학번이나 이름으로 찾기" aria-label="학번이나 이름으로 찾기">
-          <select id="statusFilter" aria-label="상태로 거르기" hidden></select>
         </div>
         <p class="count-info" id="countInfo"></p>
         <div class="table-wrap" id="listWrap" hidden>
           <table>
             <thead><tr>
               <th class="chk"><input type="checkbox" id="checkAll" aria-label="보이는 학생 모두 선택"></th>
-              <th>No.</th><th>학번</th><th>이름</th><th id="thStatus">상태</th>
+              <th>학번</th><th>이름</th><th class="cnt">장수</th>
             </tr></thead>
             <tbody id="tbody"></tbody>
           </table>
@@ -281,20 +281,20 @@ td.nm{font-family:var(--font-cute);font-size:17px}
   const STORE_KEY = 'capsule-coupon:v1';
   const DEFAULTS = { school: '기산중학교', msg: '본교무실에 캡슐 뽑으러 오세요~', perPage: 12 };
   const TITLE = '캡슐 뽑기권';
-  const SAMPLE = [
-    { id: '2122', name: '홍길동', status: '예약' },
-    { id: '2111', name: '가나다', status: '예약' },
-    { id: '2105', name: '기산이', status: '예약' },
-  ];
+  const ROWS = 'rows'; // 장수 = 같은 학생의 줄 수
+  const SAMPLE = {
+    sheet: '예시',
+    headers: ['학번', '이름', '남은 횟수'],
+    rows: [['2122', '홍길동', '3'], ['2111', '가나다', '1'], ['2105', '기산이', '2']],
+  };
   const STAR = '<svg class="c-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.7 5.5 6 .9-4.4 4.2 1.1 6L12 16.6l-5.4 2.8 1.1-6L3.3 9.2l6-.9z"/></svg>';
 
   const state = {
     settings: loadSettings(),
     issued: '', expires: '',
-    tables: [], fileName: '',
-    students: [], hasStatus: false,
-    search: '', status: '__all__',
-    selected: new Set(), focus: 0,
+    tables: [], tableIndex: 0, table: null, mode: ROWS, fileName: '',
+    students: [], totalCoupons: 0, noDigits: 3, zero: 0, skipped: 0,
+    search: '', selected: new Set(), focus: '',
     defaultImg: '', imgURL: '',
   };
 
@@ -338,6 +338,7 @@ td.nm{font-family:var(--font-cute);font-size:17px}
       issued: iss ? fmtFull(iss) : '',
       expire: fmtExpire(exp, iss),
       img: state.imgURL,
+      digits: state.noDigits,
     };
   }
 
@@ -352,37 +353,48 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     return `<svg class="c-bar" viewBox="0 0 ${x} 20" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
   }
 
-  function couponHTML(st, ctx) {
-    const len = [...st.name].length;
+  // c = { id, name, no(일련번호), seq(몇 번째), total(그 학생의 장수) }
+  function couponHTML(c, ctx) {
+    const len = [...c.name].length;
     const nameCls = len >= 7 ? ' l7' : len >= 5 ? ' l5' : '';
     return '<div class="coupon">'
       + '<div class="c-main">'
       + (ctx.school ? `<div class="c-school">${esc(ctx.school)}</div>` : '')
       + `<div class="c-title">${TITLE}${STAR}</div>`
       + '<div class="c-who">'
-      + (st.id ? `<span class="c-id">${esc(st.id)}</span>` : '')
-      + `<span class="c-name${nameCls}">${esc(st.name)}</span></div>`
+      + (c.id ? `<span class="c-id">${esc(c.id)}</span>` : '')
+      + `<span class="c-name${nameCls}">${esc(c.name)}</span>`
+      + (c.total > 1 ? `<span class="c-seq">${c.seq}/${c.total}</span>` : '')
+      + '</div>'
       + (ctx.msg ? `<div class="c-msg">${esc(ctx.msg)}</div>` : '')
       + (ctx.issued ? `<div class="c-issued">발급 ${ctx.issued}</div>` : '')
       + '</div>'
       + '<div class="c-stub">'
       + `<img class="c-img" src="${esc(ctx.img)}" alt="">`
       + (ctx.expire ? `<div class="c-exp">${esc(ctx.expire)}</div>` : '')
-      + barcodeSVG(st.no)
-      + `<div class="c-no">No.${String(st.no).padStart(3, '0')}</div>`
+      + barcodeSVG(c.no)
+      + `<div class="c-no">No.${String(c.no).padStart(ctx.digits, '0')}</div>`
       + '</div>'
       + '<i class="c-perf"></i><i class="c-notch c-notch-t"></i><i class="c-notch c-notch-b"></i>'
       + '</div>';
   }
 
-  function sheetsHTML(list) {
+  // 학생 목록 → 장수만큼 펼친 쿠폰 목록
+  function couponsOf(list) {
+    const out = [];
+    for (const s of list) for (let k = 1; k <= s.count; k++) out.push({ id: s.id, name: s.name, no: s.start + k - 1, seq: k, total: s.count });
+    return out;
+  }
+  const sumCount = (list) => list.reduce((a, s) => a + s.count, 0);
+
+  function sheetsHTML(coupons) {
     const [cols, rows] = LAYOUTS[state.settings.perPage];
     const per = cols * rows, ctx = couponCtx();
     let html = '';
-    for (let p = 0; p < list.length; p += per) {
-      const cells = list.slice(p, p + per).map((st, i) => {
+    for (let p = 0; p < coupons.length; p += per) {
+      const cells = coupons.slice(p, p + per).map((c, i) => {
         const cls = 'cell' + (i % cols === 0 ? ' fc' : '') + (i < cols ? ' fr' : '');
-        return `<div class="${cls}">${couponHTML(st, ctx)}</div>`;
+        return `<div class="${cls}">${couponHTML(c, ctx)}</div>`;
       }).join('');
       html += `<section class="sheet" style="--cols:${cols};--rows:${rows}">${cells}</section>`;
     }
@@ -392,19 +404,22 @@ td.nm{font-family:var(--font-cute);font-size:17px}
   /* ── 미리보기 ── */
   function cellSize() {
     const [cols, rows] = LAYOUTS[state.settings.perPage];
-    return { cols, rows, w: (PAGE.w - PAGE.pad * 2) / cols, h: (PAGE.h - PAGE.pad * 2) / rows };
+    return { cols, rows, per: cols * rows, w: (PAGE.w - PAGE.pad * 2) / cols, h: (PAGE.h - PAGE.pad * 2) / rows };
   }
-  function previewStudent() {
-    return state.students[state.focus - 1] || visibleStudents()[0] || { no: 1, ...SAMPLE[0] };
-  }
+  const findStudent = (key) => state.students.find((s) => s.key === key);
   function renderPreview() {
     const c = cellSize();
     const cell = $('#previewCell');
     cell.style.aspectRatio = `${c.w - CELL_PAD * 2} / ${c.h - CELL_PAD * 2}`;
-    const st = previewStudent();
-    cell.innerHTML = couponHTML(st, couponCtx());
-    $('#previewWho').textContent = state.students.length ? `${st.id ? st.id + ' ' : ''}${st.name} 학생의 쿠폰` : '예시 쿠폰이에요. 명단을 불러오면 학생 이름으로 바뀌어요.';
-    $('#sizeNote').textContent = `자르는 크기 약 ${Math.round(c.w)}×${Math.round(c.h)}mm · A4 한 장에 ${c.cols * c.rows}장`;
+    const s = findStudent(state.focus) || visibleStudents()[0];
+    const coupon = s
+      ? { id: s.id, name: s.name, no: s.start, seq: 1, total: s.count }
+      : { id: '2122', name: '홍길동', no: 1, seq: 1, total: 3 };
+    cell.innerHTML = couponHTML(coupon, couponCtx());
+    $('#previewWho').textContent = s
+      ? `${s.id ? s.id + ' ' : ''}${s.name} 학생 · 쿠폰 ${s.count}장${s.count > 1 ? ' (첫 장을 보여줘요)' : ''}`
+      : '예시 쿠폰이에요. 명단을 불러오면 학생 이름으로 바뀌어요.';
+    $('#sizeNote').textContent = `자르는 크기 약 ${Math.round(c.w)}×${Math.round(c.h)}mm · A4 한 장에 ${c.per}장`;
     const iss = parseYmd(state.issued), exp = parseYmd(state.expires);
     $('#dateWarn').hidden = !(iss && exp && state.expires < state.issued);
   }
@@ -413,11 +428,9 @@ td.nm{font-family:var(--font-cute);font-size:17px}
   const squash = (s) => String(s).replace(/\s+/g, '').toLowerCase();
   function visibleStudents() {
     const q = squash(state.search);
-    return state.students.filter((s) =>
-      (state.status === '__all__' || s.status === state.status) &&
-      (!q || squash(s.id).includes(q) || squash(s.name).includes(q)));
+    return q ? state.students.filter((s) => squash(s.id).includes(q) || squash(s.name).includes(q)) : state.students;
   }
-  const selectedStudents = () => state.students.filter((s) => state.selected.has(s.no));
+  const selectedStudents = () => state.students.filter((s) => state.selected.has(s.key));
 
   function td(cls, text) {
     const el = document.createElement('td');
@@ -431,26 +444,18 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     const frag = document.createDocumentFragment();
     for (const s of vis) {
       const tr = document.createElement('tr');
-      tr.dataset.no = s.no;
-      if (state.selected.has(s.no)) tr.classList.add('is-sel');
-      if (state.focus === s.no) tr.classList.add('is-focus');
+      tr.dataset.key = s.key;
+      if (state.selected.has(s.key)) tr.classList.add('is-sel');
+      if (state.focus === s.key) tr.classList.add('is-focus');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.checked = state.selected.has(s.no);
+      cb.checked = state.selected.has(s.key);
       cb.setAttribute('aria-label', `${s.id} ${s.name} 선택`);
       const c0 = td('chk'); c0.append(cb);
-      const nm = td('nm', s.name);
-      if (s.dup) { const b = document.createElement('span'); b.className = 'badge dup'; b.textContent = '학번 중복'; nm.append(b); }
-      tr.append(c0, td('num', String(s.no).padStart(3, '0')), td('sid', s.id), nm);
-      if (state.hasStatus) {
-        const c = td('');
-        if (s.status) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = s.status; c.append(b); }
-        tr.append(c);
-      }
+      tr.append(c0, td('sid', s.id), td('nm', s.name), td('cnt', `${s.count}장`));
       frag.append(tr);
     }
     $('#tbody').replaceChildren(frag);
-    $('#thStatus').hidden = !state.hasStatus;
     $('#listTools').hidden = !has;
     $('#listWrap').hidden = !has || !vis.length;
     $('#empty').hidden = has;
@@ -458,80 +463,104 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     renderCounts(vis);
   }
   function renderCounts(vis = visibleStudents()) {
-    const total = state.students.length, sel = state.selected.size;
+    const total = state.students.length;
+    const selList = selectedStudents();
+    const sel = selList.length, selC = sumCount(selList), visC = sumCount(vis);
     const filtered = vis.length !== total;
-    $('#countInfo').textContent = total ? `전체 ${total}명${filtered ? ` · 보이는 ${vis.length}명` : ''} · 선택 ${sel}명` : '';
-    const visSel = vis.filter((s) => state.selected.has(s.no)).length;
+    $('#countInfo').textContent = total
+      ? `학생 ${total}명 · 쿠폰 ${state.totalCoupons}장${filtered ? ` · 보이는 학생 ${vis.length}명` : ''} · 선택 ${sel}명(${selC}장)`
+      : '';
+    const visSel = vis.filter((s) => state.selected.has(s.key)).length;
     const ca = $('#checkAll');
     ca.checked = vis.length > 0 && visSel === vis.length;
     ca.indeterminate = visSel > 0 && visSel < vis.length;
     ca.disabled = !vis.length;
-    const { cols, rows } = cellSize(), per = cols * rows;
-    $('#printSel').textContent = `선택한 학생 출력 (${sel}명)`;
-    $('#printSel').disabled = !sel;
-    $('#printAll').textContent = `${filtered ? '보이는 목록' : '목록'} 전체 출력 (${vis.length}명)`;
-    $('#printAll').disabled = !vis.length;
+    const { per } = cellSize();
+    $('#printSel').textContent = `선택한 학생 출력 (${sel}명 · 쿠폰 ${selC}장)`;
+    $('#printSel').disabled = !selC;
+    $('#printAll').textContent = `${filtered ? '보이는 목록' : '목록'} 전체 출력 (${vis.length}명 · 쿠폰 ${visC}장)`;
+    $('#printAll').disabled = !visC;
     const parts = [];
-    if (sel) parts.push(`선택 출력: A4 ${Math.ceil(sel / per)}장`);
-    if (vis.length) parts.push(`전체 출력: A4 ${Math.ceil(vis.length / per)}장`);
+    if (selC) parts.push(`선택 출력: A4 용지 ${Math.ceil(selC / per)}장`);
+    if (visC) parts.push(`전체 출력: A4 용지 ${Math.ceil(visC / per)}장`);
     $('#pagesNote').textContent = parts.join(' · ');
   }
   function syncRows() {
     for (const tr of $('#tbody').children) {
-      const no = +tr.dataset.no;
-      const on = state.selected.has(no);
+      const key = tr.dataset.key;
+      const on = state.selected.has(key);
       tr.classList.toggle('is-sel', on);
-      tr.classList.toggle('is-focus', state.focus === no);
+      tr.classList.toggle('is-focus', state.focus === key);
       tr.querySelector('input').checked = on;
     }
     renderCounts();
   }
 
-  function buildStatusFilter() {
-    const sel = $('#statusFilter');
-    sel.hidden = !state.hasStatus;
-    if (!state.hasStatus) return;
-    const counts = new Map();
-    for (const s of state.students) counts.set(s.status, (counts.get(s.status) || 0) + 1);
-    sel.replaceChildren();
-    sel.append(new Option(`상태: 전체 (${state.students.length})`, '__all__'));
-    for (const [k, n] of counts) sel.append(new Option(`${k || '(비어 있음)'} (${n})`, k));
-    sel.value = '__all__';
-  }
-
   /* ── 엑셀 읽기 ── */
   const norm = (v) => String(v == null ? '' : v).replace(/\s+/g, '');
-  function findHeader(rows) {
+  const COUNT_LIKE = /^-?\d[\d,]*(\.\d+)?(장|회|개|번|건)?$/;
+  function parseCount(v) {
+    const m = /-?\d[\d,]*(\.\d+)?/.exec(String(v == null ? '' : v));
+    if (!m) return 0;
+    const n = Math.floor(parseFloat(m[0].replace(/,/g, '')));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  // 칸 이름으로 '쿠폰 장수'에 얼마나 어울리는지 점수 (-1: 장수 칸이 아님)
+  function countScore(label) {
+    const k = norm(label);
+    if (!k || /(시각|시간|날짜|일시|일자|학년|학번|번호|전화|연락)/.test(k) || k === '반') return -1;
+    if (/(남은|잔여|미지급|미수령|미사용|받을|뽑을)/.test(k)) return 5;
+    if (/(장수|쿠폰|뽑기권|티켓)/.test(k)) return 4;
+    if (/(지급|수령|사용|완료)/.test(k)) return 1;
+    if (/(뽑기|횟수|회수|수량|개수|갯수|건수|예약|신청)/.test(k)) return 3;
+    if (/(합계|총|누적)/.test(k)) return 2;
+    return 0;
+  }
+  function findHeaderRow(rows) {
     for (let r = 0; r < Math.min(rows.length, 30); r++) {
-      const row = rows[r] || [];
-      let id = -1, name = -1, status = -1;
-      row.forEach((c, i) => {
-        const k = norm(c);
-        if (id < 0 && k === '학번') id = i;
-        else if (name < 0 && (k === '이름' || k === '성명')) name = i;
-        else if (status < 0 && k === '상태') status = i;
-      });
-      if (name >= 0) return { row: r, id, name, status };
+      if ((rows[r] || []).some((c) => { const k = norm(c); return k === '이름' || k === '성명'; })) return r;
     }
-    return null;
+    return -1;
+  }
+  function makeTable(sheet, headerRow, rows) {
+    const headers = headerRow.map((c) => String(c == null ? '' : c).trim());
+    let id = -1, name = -1;
+    headers.forEach((c, i) => {
+      const k = norm(c);
+      if (id < 0 && k === '학번') id = i;
+      else if (name < 0 && (k === '이름' || k === '성명')) name = i;
+    });
+    const countCols = [];
+    headers.forEach((label, i) => {
+      if (i === id || i === name || !label) return;
+      const score = countScore(label);
+      if (score < 0) return;
+      const vals = rows.map((r) => norm(r[i])).filter(Boolean);
+      if (!vals.length || vals.filter((v) => COUNT_LIKE.test(v)).length / vals.length < 0.9) return;
+      countCols.push({ idx: i, label, score });
+    });
+    countCols.sort((a, b) => b.score - a.score || a.idx - b.idx);
+    return { sheet, headers, rows, id, name, countCols };
   }
   function tablesFromWorkbook(wb) {
     const out = [];
     for (const sheet of wb.SheetNames) {
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false, blankrows: false });
-      const h = findHeader(rows);
-      if (!h) continue;
-      const list = []; let skipped = 0;
-      for (let r = h.row + 1; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const cell = (i) => (i >= 0 ? String(row[i] == null ? '' : row[i]).trim() : '');
-        const name = cell(h.name), id = cell(h.id), status = cell(h.status);
-        if (!name) { if (id || status) skipped++; continue; }
-        list.push({ id, name, status });
-      }
-      out.push({ sheet, list, skipped, hasStatus: h.status >= 0 });
+      const all = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false, blankrows: false });
+      const h = findHeaderRow(all);
+      if (h >= 0) out.push(makeTable(sheet, all[h], all.slice(h + 1)));
     }
     return out;
+  }
+  const bestCountCol = (t) => (t.countCols.length && t.countCols[0].score > 0 ? t.countCols[0] : null);
+  // 장수 칸이 있는 시트(정산 시트)를 먼저 고릅니다.
+  function pickDefaultTable(tables) {
+    let best = 0, bestScore = -1;
+    tables.forEach((t, i) => {
+      const c = bestCountCol(t);
+      const s = (c ? c.score * 10 : 0) + (/정산/.test(t.sheet) ? 5 : 0);
+      if (s > bestScore) { bestScore = s; best = i; }
+    });
+    return best;
   }
   async function readWorkbook(file) {
     const buf = await file.arrayBuffer();
@@ -560,7 +589,7 @@ td.nm{font-family:var(--font-cute);font-size:17px}
       }
       state.tables = tables;
       state.fileName = file.name;
-      useTable(0);
+      useTable(pickDefaultTable(tables));
     } catch (e) {
       console.error(e);
       showStatus('error', [`'${file.name}' 파일을 읽지 못했어요.`, '구글시트에서 Microsoft Excel(.xlsx)로 다시 저장해서 넣어 주세요.']);
@@ -568,31 +597,68 @@ td.nm{font-family:var(--font-cute);font-size:17px}
       $('#file').value = '';
     }
   }
-  function useTable(i) {
-    const t = state.tables[i];
-    const idCount = new Map();
-    for (const s of t.list) if (s.id) idCount.set(s.id, (idCount.get(s.id) || 0) + 1);
-    state.students = t.list.map((s, k) => ({ no: k + 1, id: s.id, name: s.name, status: s.status, dup: !!s.id && idCount.get(s.id) > 1 }));
-    state.hasStatus = t.hasStatus;
+
+  // 같은 학생(학번+이름)을 한 줄로 묶고 장수를 셉니다.
+  function buildStudents() {
+    const t = state.table, mode = state.mode;
+    const cell = (row, i) => (i >= 0 ? String(row[i] == null ? '' : row[i]).trim() : '');
+    const map = new Map(), all = [];
+    let skipped = 0;
+    for (const row of t.rows) {
+      const name = cell(row, t.name), id = cell(row, t.id);
+      if (!name) { if (id) skipped++; continue; }
+      const key = norm(id) + '|' + norm(name);
+      let s = map.get(key);
+      if (!s) { s = { key, id, name, count: 0 }; map.set(key, s); all.push(s); }
+      s.count += mode === ROWS ? 1 : parseCount(row[mode]);
+    }
+    const students = all.filter((s) => s.count > 0);
+    let next = 1;
+    for (const s of students) { s.start = next; next += s.count; } // 일련번호: 엑셀 순서대로 이어서
+    state.students = students;
+    state.totalCoupons = next - 1;
+    state.noDigits = Math.max(3, String(state.totalCoupons).length);
+    state.zero = all.length - students.length;
+    state.skipped = skipped;
     state.selected.clear();
-    state.focus = state.students.length ? 1 : 0;
+    state.focus = students.length ? students[0].key : '';
+  }
+  function useTable(i, mode) {
+    const t = state.tables[i];
+    state.tableIndex = i;
+    state.table = t;
+    const best = bestCountCol(t);
+    state.mode = mode !== undefined ? mode : (best ? best.idx : ROWS);
+    buildStudents();
     state.search = ''; $('#search').value = '';
-    state.status = '__all__';
-    buildStatusFilter();
-
-    const sf = $('#sheetField'), ss = $('#sheetSel');
-    sf.hidden = state.tables.length < 2;
-    ss.replaceChildren(...state.tables.map((tb, k) => new Option(`${tb.sheet} (${tb.list.length}명)`, String(k))));
-    ss.value = String(i);
-
-    const n = state.students.length;
-    const dups = state.students.filter((s) => s.dup).length;
-    const lines = [n ? `'${state.fileName}'의 '${t.sheet}' 시트에서 ${n}명을 불러왔어요.` : `'${state.fileName}'의 '${t.sheet}' 시트에 학생 이름이 없어요.`];
-    if (dups) lines.push(`학번이 겹치는 줄이 ${dups}개 있어요. 목록에 '학번 중복'으로 표시했어요.`);
-    if (t.skipped) lines.push(`이름이 비어 있는 ${t.skipped}줄은 건너뛰었어요.`);
-    showStatus(n && !dups && !t.skipped ? 'ok' : (n ? 'warn' : 'error'), lines);
+    renderSource();
+    renderStatus();
     renderList();
     renderPreview();
+  }
+  function renderSource() {
+    const t = state.table;
+    $('#srcRow').hidden = !t;
+    if (!t) return;
+    $('#sheetField').hidden = state.tables.length < 2;
+    $('#sheetSel').replaceChildren(...state.tables.map((tb, k) => new Option(tb.sheet, String(k))));
+    $('#sheetSel').value = String(state.tableIndex);
+    const cols = [...t.countCols].sort((a, b) => a.idx - b.idx);
+    $('#countSel').replaceChildren(
+      ...cols.map((c) => new Option(`'${c.label}' 칸의 숫자만큼`, String(c.idx))),
+      new Option('줄 수만큼 (같은 학생 줄을 묶어 셈)', ROWS),
+    );
+    $('#countSel').value = String(state.mode);
+  }
+  function renderStatus() {
+    const t = state.table, n = state.students.length;
+    const lines = [n
+      ? `'${state.fileName}'의 '${t.sheet}' 시트에서 학생 ${n}명, 쿠폰 ${state.totalCoupons}장을 불러왔어요.`
+      : `'${state.fileName}'의 '${t.sheet}' 시트에는 뽑을 쿠폰이 없어요.`];
+    lines.push(state.mode === ROWS ? '장수: 같은 학생의 줄 수로 셌어요.' : `장수: '${t.headers[state.mode]}' 칸의 숫자를 썼어요.`);
+    if (state.zero) lines.push(`0장인 학생 ${state.zero}명은 목록에서 뺐어요.`);
+    if (state.skipped) lines.push(`이름이 비어 있는 ${state.skipped}줄은 건너뛰었어요.`);
+    showStatus(n ? 'ok' : 'error', lines);
   }
 
   /* ── 캡슐 그림 ── */
@@ -640,12 +706,15 @@ td.nm{font-family:var(--font-cute);font-size:17px}
 
   /* ── 인쇄 ── */
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  async function doPrint(list) {
-    if (!list.length) return;
+  async function doPrint(students) {
+    const coupons = couponsOf(students);
+    if (!coupons.length) return;
+    const pages = Math.ceil(coupons.length / cellSize().per);
+    if (pages > 10 && !confirm(`쿠폰 ${coupons.length}장, A4 용지 ${pages}장이 출력돼요. 계속할까요?`)) return;
     const root = $('#printRoot');
-    root.innerHTML = sheetsHTML(list);
+    root.innerHTML = sheetsHTML(coupons);
     const c = couponCtx();
-    const text = TITLE + c.school + c.msg + c.issued + c.expire + '발급까지No.0123456789' + list.map((s) => s.id + s.name).join('');
+    const text = TITLE + c.school + c.msg + c.issued + c.expire + '발급까지No.0123456789/' + students.map((s) => s.id + s.name).join('');
     // 글꼴(주아체)과 그림이 다 준비된 다음 인쇄 창을 엽니다.
     try { await Promise.race([document.fonts.load('400 40px Jua', text), wait(5000)]); } catch (e) { /* 기본 글꼴로 인쇄 */ }
     await Promise.race([Promise.all([...root.querySelectorAll('img')].map((im) => im.decode().catch(() => {}))), wait(5000)]);
@@ -657,7 +726,7 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     const root = $('#printRoot');
     if (root.childElementCount) return;
     const list = selectedStudents().length ? selectedStudents() : visibleStudents();
-    root.innerHTML = sheetsHTML(list);
+    root.innerHTML = sheetsHTML(couponsOf(list));
   });
 
   /* ── 시작 ── */
@@ -686,8 +755,9 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     drop.addEventListener('dragleave', () => drop.classList.remove('over'));
     drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
     $('#sheetSel').addEventListener('change', (e) => useTable(Number(e.target.value)));
+    $('#countSel').addEventListener('change', (e) => useTable(state.tableIndex, e.target.value === ROWS ? ROWS : Number(e.target.value)));
     $('#demo').addEventListener('click', () => {
-      state.tables = [{ sheet: '예시', list: SAMPLE, skipped: 0, hasStatus: true }];
+      state.tables = [makeTable(SAMPLE.sheet, SAMPLE.headers, SAMPLE.rows)];
       state.fileName = '예시 명단';
       useTable(0);
     });
@@ -696,19 +766,18 @@ td.nm{font-family:var(--font-cute);font-size:17px}
     $('#imgReset').addEventListener('click', () => { state.settings.img = null; saveSettings(); applyImage(); });
 
     $('#search').addEventListener('input', (e) => { state.search = e.target.value; renderList(); });
-    $('#statusFilter').addEventListener('change', (e) => { state.status = e.target.value; renderList(); });
     $('#checkAll').addEventListener('change', (e) => {
-      for (const s of visibleStudents()) { if (e.target.checked) state.selected.add(s.no); else state.selected.delete(s.no); }
+      for (const s of visibleStudents()) { if (e.target.checked) state.selected.add(s.key); else state.selected.delete(s.key); }
       syncRows();
     });
     $('#tbody').addEventListener('click', (e) => {
       const tr = e.target.closest('tr');
       if (!tr) return;
-      const no = +tr.dataset.no;
+      const key = tr.dataset.key;
       const cb = tr.querySelector('input');
       if (e.target !== cb) cb.checked = !cb.checked;
-      if (cb.checked) state.selected.add(no); else state.selected.delete(no);
-      state.focus = no;
+      if (cb.checked) state.selected.add(key); else state.selected.delete(key);
+      state.focus = key;
       syncRows();
       renderPreview();
     });
