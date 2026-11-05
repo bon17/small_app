@@ -28,7 +28,7 @@ function defaultSettings_() {
     className: '우리 반',
     teacherPin: '1234',
     adminPin: '0000',
-    cells: { bung: 30, hop: 45 },
+    cells: { bung: 40, hop: 60 },
     mvpStamps: 2,
     flavors: { bung: ['슈크림', '팥'], hop: ['피자', '단팥', '야채', '고구마'] },
     golden: { step: 10, perStep: 1, max: 7, amount: 3 },
@@ -850,7 +850,7 @@ function projection_(cfg, st, db) {
   const first = cfg.startDate || (st.lessonList[0] ? st.lessonList[0].date : '');
   if (!first) return null;
   const start = parseTs_(first + ' 00:00:00');
-  const end = cfg.endDate ? parseTs_(cfg.endDate + ' 00:00:00') : new Date(start.getTime() + 20 * 86400000);
+  const end = cfg.endDate ? parseTs_(cfg.endDate + ' 00:00:00') : new Date(start.getTime() + 29 * 86400000);
   const today = parseTs_(today_() + ' 00:00:00');
   const elapsed = Math.max(1, Math.round((Math.min(today, end) - start) / 86400000) + 1);
   const total = Math.max(1, Math.round((end - start) / 86400000) + 1);

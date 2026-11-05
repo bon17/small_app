@@ -30,7 +30,7 @@ function setup() {
   award('star', [1, 2, 3, 5, 8, 13]);
   award('extra', [1], { amount: 20, reason: '발표' });
   award('extra', [2], { amount: 20, reason: '봉사' });
-  award('extra', [2], { amount: 11, reason: '봉사' });
+  award('extra', [2], { amount: 20, reason: '봉사' });
   app.ok('penalty', { lesson: L, students: [4], amount: 1, reason: '잠', actionId: aid() }, { token: teacher });
   app.ok('endLesson', { lesson: L, actionId: aid() }, { token: teacher });
   app.backdateLesson(L, 1); // 어제 수업으로 바꿔서 오늘 되찾기 찬스가 열리게
@@ -38,7 +38,7 @@ function setup() {
   stu(1, 'stamp', { coupon: 'bung', n: 14 });
   stu(1, 'stamp', { coupon: 'hop', n: 6 });
   stu(1, 'donate', { n: 2 });
-  stu(2, 'stamp', { coupon: 'bung', n: 30 });
+  stu(2, 'stamp', { coupon: 'bung', n: 40 });
   stu(2, 'chooseFlavor', { coupon: 'bung', flavor: '슈크림' });
   stu(2, 'rulesRead');
   stu(3, 'sendPraise', { to: 1, text: '모둠 활동 때 자료를 먼저 나눠 줘서 정말 고마웠어' });
@@ -138,7 +138,7 @@ async function main() {
   await shot(s2, '17-student-ticket');
   await s2.click('[data-act="closeModal"]');
   // 3번 학생: 호빵 쿠폰을 모두 찍어 다 채우고 맛을 골라 교환권 받기 (야채는 품절)
-  app.ok('adjust', { no: 3, amount: 50, reason: '확인용', actionId: aid() }, { token: admin });
+  app.ok('adjust', { no: 3, amount: 70, reason: '확인용', actionId: aid() }, { token: admin });
   app.ok('rulesRead', { actionId: aid() }, { code: codes[3] });
   const s3 = await open('student', codes[3], phone);
   await s3.waitForTimeout(600);

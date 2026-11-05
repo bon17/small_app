@@ -1429,7 +1429,7 @@ const Adm = {
     if (P) {
       proj = '<p style="font-size:17px">지금 속도라면 활동이 끝날 때 <b>최고 ' + P.max + '개</b>, <b>평균 ' + P.avg + '개</b>를 받을 것 같아요.</p>' +
         '<p class="hint" style="margin-top:6px">' + P.elapsedDays + '일째 / 전체 ' + P.totalDays + '일 · 붕어빵 쿠폰(' + P.cells.bung + '칸)으로 치면 최고 ' + (P.max / P.cells.bung).toFixed(1) + '장, 평균 ' + (P.avg / P.cells.bung).toFixed(1) + '장</p>' +
-        '<p class="hint">기획: 진짜 열심히 하는 학생 ≈ 90~105개, 보통 학생 ≈ 50개. 너무 쉽거나 어려우면 설정에서 칸 수를 <b>한 번만</b> 조정해요.</p>';
+        '<p class="hint">기획(한 달): 진짜 열심히 하는 학생 ≈ 120~140개, 보통 학생 ≈ 70개. 너무 쉽거나 어려우면 설정에서 칸 수를 <b>한 번만</b> 조정해요.</p>';
     }
     return '<div class="card"><h3>🐷 저금통 단계와 보상</h3><p style="margin-bottom:10px">지금 <b>' + v.piggy.total + '개</b></p><div class="list">' + (tiers || '<div class="empty">설정에서 단계를 넣어 주세요.</div>') + '</div></div>' +
       '<div class="card"><h3>📈 1주차 점검</h3>' + proj + '</div>' +
