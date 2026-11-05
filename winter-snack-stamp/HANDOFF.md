@@ -37,11 +37,12 @@
 | `flavor-hop-pizza`, `flavor-hop-danpat`, `flavor-hop-veggie`, `flavor-hop-goguma` | 맛 고르기·교환권 (피자, 단팥, 야채, 고구마) |
 | `prop-piggy`, `prop-batter`, `prop-bag` | 저금통, 반죽, 다 채운 뒤 봉투 |
 
-**받은 그림 (11/5, 30장)**: 먼저 필요한 22장 중 19장을 앱에 넣었어요 — `bake-bung-1~5`, `steam-hop-1~5`, 맛 6장, `prop-piggy`·`-batter`·`-bag`.
+**받은 그림 (11/5, 33장)**: 먼저 필요한 22장을 모두 앱에 넣었어요 — 스티커 3장, `bake-bung-1~5`, `steam-hop-1~5`, 맛 6장, `prop-piggy`·`-batter`·`-bag`.
 `art/`에만 둔 것: 캐릭터 6장(`char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad`), `prop-mold`·`-steamer`·`-letter`, `bg-stall-wide`·`-tall`.
 캐릭터는 프롬프트와 달리 팔다리·요리사 모자·앞치마가 있지만 담임이 고른 모습이고 6장이 서로 잘 맞아요. 호빵 찌기 5장은 위에서 내려다본 찜기인데 5장이 같은 시점이라 그대로 써요.
 굽기·찌기 그림은 5단계가 다 있을 때만 써요(`Art.stageImg`, `embed.py`도 덜 모이면 안 넣어요).
-**아직 없는 그림**: 스티커 3장 `sticker-bung`·`-hop`·`-burnt` (지금은 앱이 그린 스티커). 아직 안 그린 것: `char-bung-burnt`·`-gold`.
+`sticker-burnt`는 탄 붕어빵 모양이라 호빵 쿠폰에서 빠질 때도 붕어빵으로 보여요(잠깐 뜨는 효과라 그대로 둠).
+**아직 안 그린 것**: `char-bung-burnt`·`-gold` (캐릭터는 아직 쓰는 곳이 없어요).
 
 아직 쓰는 곳이 없는 그림: `char-*`(붕어빵이·호빵이 캐릭터 8장), `prop-mold`, `prop-steamer`, `prop-letter`, `bg-stall-wide`, `bg-stall-tall`.
 들어오면 `art/`에 넣어 두고, 캐릭터는 효과 화면(스탬프 받기, 쿠폰 완성 등)에 넣을지 담임과 정해요.
