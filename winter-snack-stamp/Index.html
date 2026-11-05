@@ -20,7 +20,7 @@
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 [hidden]{display:none !important}
 html,body{margin:0;min-height:100%}
-body{font-family:var(--body);color:var(--ink);font-size:15px;line-height:1.5;background:var(--cream);
+body{font-family:var(--body);color:var(--ink);font-size:15px;line-height:1.5;background:var(--cream);word-break:keep-all;overflow-wrap:break-word;
   background-image:radial-gradient(circle at 20% 30%,rgba(255,255,255,.9) 0 2px,transparent 3px),radial-gradient(circle at 70% 60%,rgba(255,255,255,.8) 0 1.6px,transparent 2.6px),radial-gradient(circle at 40% 80%,rgba(255,255,255,.7) 0 1.4px,transparent 2.4px);
   background-size:140px 140px,190px 190px,230px 230px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -30,7 +30,8 @@ h1,h2,h3,p{margin:0}
 
 /* ───────── 포장마차 배경: 위쪽 빨간 물결 천막, 아래쪽 눈 덮인 산 ───────── */
 #scene{position:fixed;inset:0;pointer-events:none;z-index:0}
-.awning-wrap{position:absolute;left:0;right:0;top:0;filter:drop-shadow(0 4px 0 rgba(120,35,25,.16))}
+/* 천막은 화면에 고정하지 않고 페이지 맨 위에 붙어 함께 올라가요. 고정하면 화면을 내릴 때 제목이 천막 위로 겹쳐요(폰). */
+.awning-wrap{position:absolute;left:0;right:0;top:0;z-index:1;pointer-events:none;filter:drop-shadow(0 4px 0 rgba(120,35,25,.16))}
 .awning{height:64px;background:linear-gradient(rgba(70,10,5,.18) 0 9px,transparent 9px),repeating-linear-gradient(90deg,#D9473B 0 46px,#EF6F5F 46px 92px);
   -webkit-mask:radial-gradient(circle 23px at 23px 0,#000 97%,transparent 100%) bottom/46px 23px repeat-x,linear-gradient(#000 0 0) top/100% calc(100% - 23px) no-repeat;
           mask:radial-gradient(circle 23px at 23px 0,#000 97%,transparent 100%) bottom/46px 23px repeat-x,linear-gradient(#000 0 0) top/100% calc(100% - 23px) no-repeat}
@@ -326,7 +327,8 @@ img.pic{display:block;width:100%;height:auto}
 </style>
 </head>
 <body>
-<div id="scene" aria-hidden="true"><div class="awning-wrap"><div class="awning"></div></div><div class="hills" id="hills"></div></div>
+<div class="awning-wrap" aria-hidden="true"><div class="awning"></div></div>
+<div id="scene" aria-hidden="true"><div class="hills" id="hills"></div></div>
 <main id="app"></main>
 <div id="modalRoot"></div>
 <div id="fxRoot"></div>
@@ -486,7 +488,25 @@ function fx(kind, text, ms) {
 
 /* ════════════════════════ 그림 (기본은 직접 그린 SVG, PNG가 있으면 PNG) ════════════════════════ */
 const Art = {
-  img(key, fallback, alt) { return ART_IMAGES[key] ? '<img class="pic" src="' + ART_IMAGES[key] + '" alt="' + esc(alt || '') + '">' : fallback(); },
+  img(key, fallback, alt) { return ART_IMAGES[key] ? '<img class="pic" src="' + this.url(key) + '" alt="' + esc(alt || '') + '">' : fallback(); },
+  /**
+   * 그림 주소: 긴 data: 주소(장당 약 50KB)를 처음 한 번만 blob: 주소로 바꿔 두고 다시 써요.
+   * 쿠폰 45칸에 스티커를 그릴 때 화면 글자가 2MB 넘게 커지지 않아 폰에서도 빨라요.
+   */
+  urls: {},
+  url(key) {
+    if (this.urls[key]) return this.urls[key];
+    let u = ART_IMAGES[key];
+    try {
+      const m = /^data:([^;,]+);base64,(.*)$/.exec(u);
+      if (m && window.URL && URL.createObjectURL && window.Blob) {
+        const bin = atob(m[2]), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        u = URL.createObjectURL(new Blob([bytes], { type: m[1] }));
+      }
+    } catch (e) { u = ART_IMAGES[key]; }
+    return (this.urls[key] = u);
+  },
   fishShape: 'M90 40 L112 22 C116 20 119 24 117 28 L110 40 L117 52 C119 56 116 60 112 58 Z M44 17 C50 6 64 6 70 17 Z M48 63 C54 72 64 72 68 63 Z M12 42 C12 24 32 14 56 14 C78 14 92 26 94 40 C92 54 78 66 56 66 C32 66 12 60 12 42 Z',
   fishBody(fill, line, scale, opt) {
     opt = opt || {};
@@ -1126,6 +1146,7 @@ const Stu = {
     setInterval(() => { if (!document.hidden && !$('.modal')) this.load(true); }, 60000);
   },
   async load(quiet) {
+    if (quiet && this.stampPending()) return; // 찍기를 저장하는 중에는 화면을 되돌리지 않아요
     try {
       this.set(await call('studentState'));
       store.set('wss:me', B.code); // 로그아웃을 누를 때까지 첫 화면을 열어도 바로 내 화면으로 와요
@@ -1258,24 +1279,66 @@ const Stu = {
       '<button class="btn white" data-act="closeModal">닫기</button></div>', 'wide');
     if (burnNow) { Sound.play('burn'); toast('🔥 스티커 ' + burnNow + '개가 까맣게 탔어요…', 'warn'); }
   },
-  async stamp(n) {
-    if (this.busy) return;
-    const c = this.tab, cp = this.v.coupons[c];
-    n = Math.min(n, this.v.unstamped, cp.cells - cp.filled);
+  /**
+   * 쿠폰 찍기: 누르는 즉시 화면에 스티커를 붙이고, 서버 저장은 뒤에서 차례로 해요(Apps Script는 한 번에 1~3초 걸려요).
+   * 빨리 여러 번 눌러도 모아서 보내요. 저장이 안 되면 서버 상태로 되돌리고 알려요.
+   */
+  stampQ: [], stampBatch: null, stampSending: false,
+  stampPending() { return this.stampSending || !!this.stampBatch || this.stampQ.length > 0; },
+  applyStamp(v, op) { v.unstamped -= op.n; v.coupons[op.c].filled += op.n; },
+  stamp(n) {
+    const c = this.tab, v = this.v, cp = v.coupons[c];
+    n = Math.min(n, v.unstamped, cp.cells - cp.filled);
     if (n < 1) return;
-    this.busy = true;
     const from = cp.filled;
-    try {
-      this.set(await call('stamp', { coupon: c, n, actionId: uid() }));
-      Sound.play(c === 'bung' ? 'sizzle' : 'poof');
-      const now = this.v.coupons[c];
-      const before = Art.stageOf(from, now.cells), after = Art.stageOf(now.filled, now.cells);
-      this.coupon(c, { from, to: now.filled });
-      if (after > before && now.filled < now.cells) setTimeout(() => toast((c === 'bung' ? '🔥 ' : '♨ ') + Art.stageText[c][after - 1], 'good'), 300);
-      if (now.filled >= now.cells) setTimeout(() => this.complete(c), 700);
-      this.render();
-    } catch (e) { toast(e.msg, 'warn'); await this.load(true); }
-    this.busy = false;
+    this.applyStamp(v, { c, n });
+    this.stampQ.push({ c, n });
+    Sound.play(c === 'bung' ? 'sizzle' : 'poof');
+    const before = Art.stageOf(from, cp.cells), after = Art.stageOf(cp.filled, cp.cells);
+    this.coupon(c, { from, to: cp.filled });
+    if (after > before && cp.filled < cp.cells) setTimeout(() => toast((c === 'bung' ? '🔥 ' : '♨ ') + Art.stageText[c][after - 1], 'good'), 300);
+    // 다 채운 축하와 맛 고르기는 서버에 저장된 뒤에 열어요.
+    if (cp.filled >= cp.cells) this.stampIdle().then((ok) => { if (ok && this.v.coupons[c].filled >= this.v.coupons[c].cells) setTimeout(() => this.complete(c), 400); });
+    this.render();
+    this.flushStamps();
+  },
+  async flushStamps() {
+    if (this.stampSending) return;
+    this.stampSending = true;
+    let tries = 0, ok = true;
+    while (this.stampBatch || this.stampQ.length) {
+      if (!this.stampBatch) {
+        // 같은 쿠폰에 이어서 누른 것은 한 번에 보내요. 한 번 만든 묶음은 다시 보낼 때도 그대로(같은 기록 번호) 보내요.
+        const c = this.stampQ[0].c;
+        let n = 0;
+        while (this.stampQ.length && this.stampQ[0].c === c) n += this.stampQ.shift().n;
+        this.stampBatch = { c, n, id: uid() };
+      }
+      const b = this.stampBatch;
+      try {
+        const v = await call('stamp', { coupon: b.c, n: b.n, actionId: b.id });
+        this.stampBatch = null; tries = 0;
+        this.stampQ.forEach((op) => this.applyStamp(v, op)); // 아직 안 보낸 것은 화면에 그대로 남겨요
+        this.set(v);
+        this.render();
+      } catch (e) {
+        if (e.code === 'NET' && tries < 3) { tries++; await new Promise((r) => setTimeout(r, 1500 * tries)); continue; }
+        this.stampBatch = null; this.stampQ = []; ok = false;
+        toast((e.msg || '저장하지 못했어요.') + ' 다시 해 주세요.', 'warn');
+        try { this.set(await call('studentState')); } catch (e2) {}
+        this.render();
+        if ($('.modal') && $('.board')) this.coupon(this.tab);
+      }
+    }
+    this.stampSending = false;
+    const waiters = this.stampWaiters || [];
+    this.stampWaiters = [];
+    waiters.forEach((w) => w(ok));
+  },
+  /** 찍기 저장이 다 끝날 때까지 기다려요. 저장이 잘 됐으면 true. */
+  stampIdle() {
+    if (!this.stampPending()) return Promise.resolve(true);
+    return new Promise((r) => { (this.stampWaiters = this.stampWaiters || []).push(r); });
   },
   complete(c) {
     Sound.play('yay');
@@ -1294,6 +1357,7 @@ const Stu = {
   async pickFlavor(c, f) {
     const ok = await confirmBox(esc(f) + ' 맛으로 할까요?', '<p>고르면 바꿀 수 없어요. 교환권이 바로 나와요.</p>', '이 맛으로!', 'red');
     if (!ok) return this.flavor(c);
+    if (!(await this.stampIdle())) return; // 찍기가 저장된 뒤에 골라요
     try {
       const before = this.v.tickets.length;
       this.set(await call('chooseFlavor', { coupon: c, flavor: f, actionId: uid() }));
@@ -1380,7 +1444,7 @@ Object.assign(ACTS, {
     if (n < 1 || n > Stu.v.unstamped) { toast('기부할 개수를 확인해 주세요.', 'warn'); return; }
     closeModal();
     const ok = await confirmBox('정말 기부할까요?', '<p style="font-size:18px">반죽 <b>' + n + '개</b>를 저금통에 넣어요.<br><b class="minus">기부한 스탬프는 돌려받을 수 없어요.</b></p>', n + '개 기부', 'red');
-    if (!ok) return;
+    if (!ok || !(await Stu.stampIdle())) return;
     try { Stu.set(await call('donate', { n, actionId: uid() })); Sound.play('coin'); fx('pig', '🐷 고마워요! ' + n + '개 기부', 2200); Stu.render(); Stu.celebrate(); } catch (e) { toast(e.msg, 'warn'); }
   },
   stuPraise() { Stu.praise(); },
@@ -1392,6 +1456,7 @@ Object.assign(ACTS, {
   async stuPraiseSend() {
     const text = $('#prText').value;
     $('#prSend').disabled = true;
+    await Stu.stampIdle();
     try {
       const v = await call('sendPraise', { to: Stu.praiseTo, text, actionId: uid() });
       Stu.set(v); closeModal(); Stu.render();

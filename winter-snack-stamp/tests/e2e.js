@@ -125,12 +125,24 @@ async function main() {
   await s1.waitForTimeout(600);
   await shot(s1, '11-student-main');
   await shot(s1, '12-student-main-full', true);
+  // 폰에서 조금 내려도 제목이 천막과 겹치지 않아요 (천막이 함께 올라가요)
+  await s1.evaluate(() => window.scrollTo(0, 60));
+  await shot(s1, '11b-student-scrolled');
+  await s1.evaluate(() => window.scrollTo(0, 0));
   await s1.click('.cpn[data-c="bung"]');
   await s1.waitForSelector('.cells');
   await shot(s1, '13-student-coupon-bung');
+  // 서버가 2초 늦게 대답해도, 누르면 바로 스티커가 붙어요. 빨리 두 번 눌러도 둘 다 저장돼요.
+  await s1.evaluate(() => { const real = window.__mockApi; window.__mockApi = (req) => new Promise((r) => setTimeout(r, req.action === 'stamp' ? 2000 : 0)).then(() => real(req)); });
+  const filledBefore = await s1.$$eval('.cells .cell-s.fill', (els) => els.length);
   await s1.click('button[data-act="stuStamp1"]');
-  await s1.waitForTimeout(900);
+  await s1.click('button[data-act="stuStamp1"]');
+  await s1.waitForTimeout(200);
+  if ((await s1.$$eval('.cells .cell-s.fill', (els) => els.length)) !== filledBefore + 2) throw new Error('찍기를 누르면 바로 스티커가 붙어야 해요');
   await shot(s1, '14-student-coupon-stamped');
+  await s1.waitForTimeout(4500); // 서버 저장 기다리기
+  if (app.ok('studentState', {}, { code: codes[1] }).coupons.bung.filled !== filledBefore + 2) throw new Error('빨리 두 번 누른 찍기가 모두 저장돼야 해요');
+  if ((await s1.$$eval('.cells .cell-s.fill', (els) => els.length)) !== filledBefore + 2) throw new Error('저장 뒤에도 화면이 그대로여야 해요');
   await s1.click('.tabs [data-c="hop"]');
   await s1.waitForTimeout(400);
   await shot(s1, '15-student-coupon-hop');

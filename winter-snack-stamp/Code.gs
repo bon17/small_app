@@ -276,9 +276,9 @@ const HANDLERS = {
         if (n < 1) throw err_('BAD', '찍을 개수를 확인해 주세요.');
         n = Math.min(n, cells - cp.filled);
         if (s.unstamped < n) throw err_('NOT_ENOUGH', '반죽이 모자라요.');
-        append_([row_(T.STAMP, me.no, n, { coupon: c }, p.actionId)]);
+        append_([row_(T.STAMP, me.no, n, { coupon: c }, p.actionId)], db);
       }
-      return studentView_(load_(), me);
+      return studentView_(db, me);
     });
   },
   chooseFlavor: function (req, p) {
@@ -295,9 +295,9 @@ const HANDLERS = {
         const left = st.stock[c + '|' + flavor] ? st.stock[c + '|' + flavor].left : 0;
         if (left <= 0) throw err_('SOLDOUT', flavor + ' 맛이 방금 다 떨어졌어요. 다른 맛을 골라 주세요.');
         const ticket = (c === 'bung' ? '붕-' : '호-') + ('00' + (maxTicketSeq_(db.log, c) + 1)).slice(-3);
-        append_([row_(T.FLAVOR, me.no, '', { coupon: c, flavor: flavor, ticket: ticket }, p.actionId)]);
+        append_([row_(T.FLAVOR, me.no, '', { coupon: c, flavor: flavor, ticket: ticket }, p.actionId)], db);
       }
-      return studentView_(load_(), me);
+      return studentView_(db, me);
     });
   },
   donate: function (req, p) {
@@ -309,9 +309,9 @@ const HANDLERS = {
         const s = compute_(db).students[me.no];
         if (n < 1) throw err_('BAD', '기부할 개수를 확인해 주세요.');
         if (s.unstamped < n) throw err_('NOT_ENOUGH', '아직 안 찍은 반죽만 기부할 수 있어요.');
-        append_([row_(T.DONATE, me.no, n, {}, p.actionId)]);
+        append_([row_(T.DONATE, me.no, n, {}, p.actionId)], db);
       }
-      return studentView_(load_(), me);
+      return studentView_(db, me);
     });
   },
   sendPraise: function (req, p) {
@@ -330,11 +330,11 @@ const HANDLERS = {
         const praise = row_(T.PRAISE, me.no, '', { to: to, text: text }, p.actionId);
         const rows = [praise];
         if (Math.random() * 100 < Number(cfg.luckyPct)) { rows.push(row_(T.LUCKY, me.no, 1, { praise: praise[0] }, p.actionId)); lucky = true; }
-        append_(rows);
+        append_(rows, db);
       } else {
         lucky = db.log.some(function (r) { return r.action === p.actionId && r.type === T.LUCKY && !r.cancelled; });
       }
-      const view = studentView_(load_(), me);
+      const view = studentView_(db, me);
       view.lucky = lucky;
       return view;
     });
@@ -344,8 +344,8 @@ const HANDLERS = {
       const db = load_();
       const me = me_(db, req);
       const version = rulesVersion_(db.settings);
-      if (compute_(db).students[me.no].rulesVersion !== version) append_([row_(T.RULES, me.no, '', { version: version }, p.actionId)]);
-      return studentView_(load_(), me);
+      if (compute_(db).students[me.no].rulesVersion !== version) append_([row_(T.RULES, me.no, '', { version: version }, p.actionId)], db);
+      return studentView_(db, me);
     });
   },
 };
@@ -1032,14 +1032,15 @@ function readStockRows_() {
 }
 
 function readLog_() {
-  return rowsOf_(SHEET.log, LOG_HEAD).filter(function (r) { return r[0] !== ''; }).map(function (r) {
-    let detail = {};
-    if (r[5]) { try { detail = JSON.parse(r[5]); } catch (e) { detail = {}; } }
-    return {
-      id: String(r[0]), ts: tsString_(r[1]), type: String(r[2]), no: r[3] === '' ? '' : Number(r[3]),
-      amount: Number(r[4]) || 0, detail: detail, cancelled: String(r[6]).trim() !== '', action: String(r[7] || ''),
-    };
-  });
+  return rowsOf_(SHEET.log, LOG_HEAD).filter(function (r) { return r[0] !== ''; }).map(parseLogRow_);
+}
+function parseLogRow_(r) {
+  let detail = {};
+  if (r[5]) { try { detail = JSON.parse(r[5]); } catch (e) { detail = {}; } }
+  return {
+    id: String(r[0]), ts: tsString_(r[1]), type: String(r[2]), no: r[3] === '' ? '' : Number(r[3]),
+    amount: Number(r[4]) || 0, detail: detail, cancelled: String(r[6]).trim() !== '', action: String(r[7] || ''),
+  };
 }
 
 function load_() {
@@ -1058,10 +1059,15 @@ function row_(type, no, amount, detail, action) {
     detail ? JSON.stringify(detail) : '', '', String(action || '')];
 }
 
-function append_(rows) {
+/**
+ * 기록 탭에 줄을 더해요. db를 같이 주면 읽어 둔 db에도 같은 줄을 넣어서,
+ * 응답 화면을 만들 때 시트를 다시 읽지 않아도 돼요(학생 화면이 빨라져요).
+ */
+function append_(rows, db) {
   if (!rows.length) return;
   const sh = sheet_(SHEET.log, LOG_HEAD);
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, LOG_HEAD.length).setNumberFormat('@').setValues(rows);
+  if (db) rows.forEach(function (r) { const e = parseLogRow_(r); db.log.push(e); if (e.action) db.done[e.action] = true; });
 }
 
 function cancelRows_(pred) {

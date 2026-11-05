@@ -396,3 +396,21 @@ test('관리자 PIN을 바꾸면 다른 담임 기기는 로그아웃돼요', ()
   assert.equal(app.call('adminState', {}, { token: phone }).code, 'AUTH');
   assert.equal(app.call('adminState', {}, { token: pc }).ok, true, 'PIN을 바꾼 기기는 그대로예요');
 });
+
+test('학생 동작(찍기·맛 고르기·기부·칭찬) 응답은 시트를 다시 읽은 화면과 똑같아요', () => {
+  const c = setupClass({ settings: { cells: { bung: 5, hop: 45 } } });
+  c.stock([{ coupon: 'bung', flavor: '팥', stocked: 3 }]);
+  const L = c.start();
+  c.award(L, 'extra', [1], { amount: 9 });
+  const same = (got, no) => {
+    const fresh = c.me(no);
+    const strip = (v) => { const o = JSON.parse(JSON.stringify(v)); delete o.lucky; delete o.serverNow; return o; };
+    assert.deepEqual(strip(got), strip(fresh));
+  };
+  same(c.student(1, 'stamp', { coupon: 'bung', n: 3 }), 1);
+  same(c.student(1, 'stamp', { coupon: 'bung', n: 2 }), 1);
+  same(c.student(1, 'chooseFlavor', { coupon: 'bung', flavor: '팥' }), 1);
+  same(c.student(1, 'donate', { n: 2 }), 1);
+  same(c.student(1, 'sendPraise', { to: 2, text: '수학 시간에 모르는 문제를 친절하게 알려 줘서 고마워' }), 1);
+  same(c.student(2, 'rulesRead', {}), 2);
+});
