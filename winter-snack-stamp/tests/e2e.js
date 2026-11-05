@@ -71,15 +71,21 @@ async function main() {
   // ── 교실 패드 ──
   const pad = await open('pad', '', { width: 1180, height: 820 });
   await shot(pad, '01-pad-lock');
-  await pad.click('[data-act="padOpen"]');
-  for (const k of ['1', '2', '3', '4']) await pad.click('[data-act="pinKey"][data-k="' + k + '"]');
-  await pad.click('[data-act="pinOk"]');
+  // 노트북 키보드로 열어요: Enter → PIN 치기(틀린 글자는 Backspace) → Enter
+  await pad.keyboard.press('Enter');
+  await pad.waitForSelector('.pinbox');
+  await pad.keyboard.type('12349');
+  await pad.keyboard.press('Backspace');
+  if ((await pad.$$('.pinbox .dots i.on')).length !== 4) throw new Error('키보드로 친 PIN이 4자리가 아니에요');
+  await shot(pad, '01b-pad-pin');
+  await pad.keyboard.press('Enter');
   await pad.waitForSelector('[data-act="padSubject"]');
   await pad.click('[data-act="padSubject"][data-s="수학"]');
   await shot(pad, '02-pad-setup');
   await pad.click('[data-act="padStart"]');
   await pad.waitForSelector('.names');
   await shot(pad, '02b-pad-class-start');
+  if (await pad.$('[data-act="padSound"]') || await pad.evaluate(() => Sound.on)) throw new Error('교실 패드는 소리가 없어야 해요');
   for (const no of [1, 4, 7]) await pad.click('[data-act="padPick"][data-no="' + no + '"]');
   await pad.click('[data-act="padTool"][data-tool="star"]');
   await pad.waitForTimeout(600);

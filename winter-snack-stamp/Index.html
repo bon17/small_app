@@ -766,6 +766,8 @@ const Pad = {
   lastTier() { return Number(store.get('wss:padTier') || 0); },
   async init() {
     document.body.classList.add('pad');
+    Sound.on = false; // 교실 패드는 소리를 내지 않아요 (담임 결정). 효과 화면만 떠요.
+    document.addEventListener('keydown', (e) => this.key(e));
     SESSION_TOKEN = this.token;
     try { this.pub = await call('padPublic'); } catch (e) {}
     if (this.token) {
@@ -790,6 +792,24 @@ const Pad = {
       const t = reached[reached.length - 1];
       setTimeout(() => { Sound.play('coin'); fx('pig', '🐷 우리 반 저금통 ' + t.at + '개 달성!<br>' + esc(t.reward), 4200); }, 400);
     }
+  },
+  /** 노트북 키보드: 잠금 화면에서 Enter나 숫자 → PIN 화면. PIN 화면에서 숫자·Backspace·Enter(확인)·Esc(취소). */
+  key(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || $('#modalRoot').innerHTML) return;
+    const k = e.key, digit = /^[0-9]$/.test(k);
+    if (this.phase === 'lock') {
+      if (k !== 'Enter' && !digit) return;
+      e.preventDefault(); ACTS.padOpen();
+      if (this.phase === 'pin' && digit) { this.pin = k; this.render(); }
+      return;
+    }
+    if (this.phase !== 'pin') return;
+    if (digit) { if (this.pin.length < 8) this.pin += k; }
+    else if (k === 'Backspace') this.pin = this.pin.slice(0, -1);
+    else if (k === 'Escape') { this.phase = 'lock'; this.pin = ''; }
+    else if (k === 'Enter') { e.preventDefault(); if (this.pin.length >= 4) ACTS.pinOk(); return; }
+    else return;
+    e.preventDefault(); this.render();
   },
   logout() { this.token = ''; SESSION_TOKEN = ''; store.del('wss:pad', true); this.view = null; this.phase = 'lock'; },
   async tick() {
@@ -830,7 +850,7 @@ const Pad = {
   rPin() {
     const dots = Array.from({ length: Math.max(4, this.pin.length) }, (_, i) => '<i class="' + (i < this.pin.length ? 'on' : '') + '"></i>').join('');
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '취소', '0', '⌫'].map((k) => '<button data-act="pinKey" data-k="' + k + '">' + k + '</button>').join('');
-    return '<div class="lock"><div class="card pinbox"><h2 class="title" style="font-size:24px">교사 PIN</h2><div class="dots">' + dots + '</div><div class="keys">' + keys + '</div>' +
+    return '<div class="lock"><div class="card pinbox"><h2 class="title" style="font-size:24px">교사 PIN</h2><div class="dots">' + dots + '</div><p class="hint" style="margin:-6px 0 12px">노트북은 키보드로 숫자를 치고 Enter</p><div class="keys">' + keys + '</div>' +
       '<button class="btn red block big" style="margin-top:14px" data-act="pinOk"' + (this.pin.length < 4 ? ' disabled' : '') + '>확인</button></div></div>';
   },
   autoPeriod() {
@@ -879,7 +899,7 @@ const Pad = {
     return '<div class="wrap wide">' +
       '<div class="padhead"><div class="now grow">' + (L.period > 0 ? L.period + '교시 · ' : '') + esc(L.subject) + '</div>' +
       '<span class="pill">🐷 ' + v.piggy.total + (v.piggy.next ? '/' + v.piggy.next.at : '') + '</span><span class="pill gray" id="padTimer">' + this.left() + '</span>' + status +
-      '<button class="btn white sm" data-act="padSound">' + (Sound.on ? '🔊' : '🔇') + '</button><button class="btn navy sm" data-act="padEnd">수업 마치기</button></div>' +
+      '<button class="btn navy sm" data-act="padEnd">수업 마치기</button></div>' +
       '<div class="readybar"><b>🔔 수업 준비</b><span class="grow small">🪑 착석 · 🤫 조용히 · 📖 교과서·프린트 — 반 전체가 되면</span>' +
       (L.ready ? '<span class="pill mint">✔ 오늘 수업 준비 성공</span>' : '<button class="btn mint" data-act="padReady">전원 +1</button>') + '</div>' +
       '<div class="toolbar"><button class="btn white sm" data-act="padAll">전체 선택</button><button class="btn white sm" data-act="padNone">선택 해제</button>' +
@@ -969,13 +989,15 @@ Object.assign(ACTS, {
     Sound.play('tick'); Pad.render();
   },
   async pinOk() {
+    if (Pad.pinBusy) return;
+    Pad.pinBusy = true;
     try {
       const r = await call('padLogin', { pin: Pad.pin });
       Pad.token = r.token; SESSION_TOKEN = r.token; store.set('wss:pad', r.token, true);
       Pad.setView(await call('padState'));
       Pad.phase = 'setup'; Pad.setup = { period: 0, subject: '' };
     } catch (e) { toast(e.msg || '다시 시도해 주세요.', 'warn'); }
-    Pad.pin = ''; Pad.render();
+    Pad.pinBusy = false; Pad.pin = ''; Pad.render();
   },
   padLogout() { Pad.logout(); Pad.render(); },
   padPeriod(t) { Pad.setup.period = Number(t.dataset.n); Pad.render(); },
@@ -992,7 +1014,6 @@ Object.assign(ACTS, {
   padPick(t) { const no = Number(t.dataset.no); if (Pad.sel.has(no)) Pad.sel.delete(no); else Pad.sel.add(no); Sound.play('tick'); Pad.render(); },
   padAll() { Pad.view.students.forEach((s) => Pad.sel.add(s.no)); Pad.render(); },
   padNone() { Pad.sel.clear(); Pad.render(); },
-  padSound() { Sound.toggle(); Pad.render(); },
   padTool(t) {
     const tool = t.dataset.tool;
     const list = Array.from(Pad.sel);
