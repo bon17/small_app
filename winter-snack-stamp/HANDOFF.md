@@ -19,7 +19,7 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 
 - **실제로 쓰는 중이에요.** 담임이 개인 구글 시트에 Apps Script로 설치·배포했고, 교실 패드·담임 관리·학생 화면이 열리는 것을 확인했어요. 명단 31명이 들어가 있어요.
 - 활동 기간: **2026-11-09(월) ~ 12-04(금), 4주**.
-- 그림: 먼저 필요한 **22장 모두** 앱에 들어갔어요(아래 6장). **로고 `logo.png`는 담임이 ChatGPT로 그리는 중**([ART_PROMPTS.md](ART_PROMPTS.md) L). 오면 `art/`에 넣고 `python3 tools/embed.py`(로고는 900px로 넣어요).
+- 그림: 먼저 필요한 **22장 모두** 앱에 들어갔어요(아래 6장). **로고 `logo.png`도 11/5 밤에 받아서 넣었어요**([ART_PROMPTS.md](ART_PROMPTS.md) L, 900px로 넣어요).
 - 교실 포스터: [`poster/poster-A4.pdf`](poster/poster-A4.pdf) (앞장 + 규칙 뒷장). 11/5 밤에 **⚠ 주의 칸을 더한 판** [`poster/poster-A4-warning.pdf`](poster/poster-A4-warning.pdf)도 만들었어요(만드는 법: [tools/poster/README.md](tools/poster/README.md)).
 - **11/5 밤 바꾼 것** (담임 요청): 교실 패드 👥 반 전체 ＋ 전원 주기 / － 전원 빼기, 패드 잠금 화면은 저금통 빼고 로고, 학생은 처음에 **이름 + 코드**로 로그인(로고 있는 로그인 화면), **학생 공용 주소 `?v=stu`**.
 - **확인이 필요한 것**: 담임이 11/5 밤 `Code.gs`·`Index.html`을 다시 붙여 넣고 새 버전으로 배포했는지. 이 배포 뒤에는 이미 들어와 있던 학생 기기도 **이름을 한 번 더** 넣어요(코드는 남아 있어요).
@@ -93,11 +93,11 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 
 ## 6. 그림
 
-`art/`에 33장. 앱에 들어간 것(22장): `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy`·`-batter`·`-bag`.
+`art/`에 34장. 앱에 들어간 것(23장): `logo`, `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy`·`-batter`·`-bag`.
 `art/`에만 있는 것(앱에서 아직 안 씀): 캐릭터 `char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad`, `prop-mold`·`-steamer`·`-letter`, `bg-stall-wide`·`-tall`.
 `embed.py`는 앱 코드가 부르지 않는 그림을 건너뛰어요. 새 그림을 쓰려면 먼저 `Art` 안에서 `this.img('이름', 기본그림, '설명')`으로 부르고 `python3 tools/embed.py`를 돌려요.
 아직 안 그린 것: `char-bung-burnt`·`-gold`. 담임이 "황금 붕어빵·행운 스탬프 그림이 없어도 되냐"고 물어서 **없어도 된다**고 답했어요(효과 화면이 ✨🍀 반짝이와 큰 글자로 떠요). 캐릭터를 효과 화면에 넣을지는 담임과 정하지 않았어요.
-`logo.png`: 담임이 그리는 중. 앱은 `Art.logo()`로 불러요(없으면 앱이 그린 포장마차 + 글자).
+`logo.png`: 들어갔어요(포장마차 수레 + "우리 반 겨울 간식 / 포장마차" 글자). 앱은 `Art.logo()`로 불러요(그림이 없으면 앱이 그린 포장마차 + 글자).
 
 ## 7. 고칠 때 순서
 
@@ -110,7 +110,7 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 
 ## 8. 남은 일·아이디어
 
-- 11/5 밤 배포 확인, 로고 그림 받으면 넣기(1장 참고)
+- 11/5 밤 배포 확인(1장 참고)
 - 실제 사용 중 속도 확인: 기록이 수천 줄일 때, 패드·학생 폰·PC 동시 사용
 - 캐릭터 그림을 효과 화면(스탬프 받기, 쿠폰 완성 등)에 넣을지 담임과 정하기
 - 1주차 점검(담임 관리 → 통계)으로 난이도가 맞는지 보고, 필요하면 칸 수를 한 번만 조정(포스터 숫자와 달라지는 것 주의)
