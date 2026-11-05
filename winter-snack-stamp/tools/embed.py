@@ -74,6 +74,12 @@ def main():
             print('건너뜀 (같은 이름이 이미 있어요):', p.name)
             continue
         files[key] = p
+    # 굽기·찌기 그림은 5단계가 다 모여야 앱이 써요(Art.stageImg). 덜 모였으면 넣지 않아요.
+    for prefix in ('bake-bung-', 'steam-hop-'):
+        have = [k for k in files if re.fullmatch(re.escape(prefix) + r'[1-5]', k)]
+        if have and len(have) < 5:
+            for k in sorted(have):
+                print('건너뜀 (%s1~5가 다 모이면 넣어요, 지금 %d장):' % (prefix, len(have)), files.pop(k).name)
     for key in sorted(files):
         p = files[key]
         entries.append("  '%s': '%s'," % (key, encode_image(p)))

@@ -9,7 +9,8 @@
 한 번에 많이 올리다 "The file is too large" 오류가 난 적이 있어서, 5~10장씩 나눠 올리라고 안내했어요.
 
 1. `git fetch origin claude/wonderful-cori-ly4uot && git checkout claude/wonderful-cori-ly4uot && git pull`
-2. `winter-snack-stamp/art/` 안의 그림(PNG·JPG·WebP) 목록을 봐요. GitHub 웹으로 올리면 **저장소 맨 위 폴더**에 들어갈 때가 있어요(`git show --stat HEAD`). 그러면 `git mv`로 `art/`에 옮겨요. **하나도 없으면** 담임에게 [art/README.md](art/README.md)의 올리는 방법(링크, 5~10장씩, Commit directly to 이 브랜치)을 다시 알려 줘요.
+2. `winter-snack-stamp/art/` 안의 그림(PNG·JPG·WebP) 목록을 봐요. **`art/`만 보지 말고 저장소 전체를 찾아요.** GitHub 웹으로 올리면 **저장소 맨 위 폴더**나 **다른 브랜치**에 들어갈 때가 있어요(11/5에 실제로 그랬어요).
+   `git fetch origin '+refs/heads/*:refs/remotes/origin/*' && git log --all --author=bon17 --name-status`로 담임이 올린 파일을 모두 보고, 맨 위 폴더면 `git mv`, 다른 브랜치면 `git show <커밋>:<파일> > art/<파일>`로 가져와요. **하나도 없으면** 담임에게 [art/README.md](art/README.md)의 올리는 방법(링크, 5~10장씩, Commit directly to 이 브랜치)을 다시 알려 줘요.
 3. 그림을 **하나씩 열어 보고** [ART_PROMPTS.md](ART_PROMPTS.md)의 어느 그림인지 맞춰요.
    ChatGPT 기본 이름(예: `ChatGPT Image ….png`)이면 `git mv`로 정해진 이름으로 바꿔요. 이름은 영어 소문자·숫자·`-`만 돼요.
 4. 그림마다 확인할 것:
@@ -36,9 +37,11 @@
 | `flavor-hop-pizza`, `flavor-hop-danpat`, `flavor-hop-veggie`, `flavor-hop-goguma` | 맛 고르기·교환권 (피자, 단팥, 야채, 고구마) |
 | `prop-piggy`, `prop-batter`, `prop-bag` | 저금통, 반죽, 다 채운 뒤 봉투 |
 
-**받은 그림 (11/5)**: `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy` → 앱에 넣음. `char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad` → `art/`에만 둠.
-캐릭터는 프롬프트와 달리 팔다리·요리사 모자·앞치마가 있지만 담임이 고른 모습이고 6장이 서로 잘 맞아요.
-**아직 없는 그림 (먼저 필요한 17장)**: `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `prop-batter`, `prop-bag`.
+**받은 그림 (11/5, 30장)**: 먼저 필요한 22장 중 19장을 앱에 넣었어요 — `bake-bung-1~5`, `steam-hop-1~5`, 맛 6장, `prop-piggy`·`-batter`·`-bag`.
+`art/`에만 둔 것: 캐릭터 6장(`char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad`), `prop-mold`·`-steamer`·`-letter`, `bg-stall-wide`·`-tall`.
+캐릭터는 프롬프트와 달리 팔다리·요리사 모자·앞치마가 있지만 담임이 고른 모습이고 6장이 서로 잘 맞아요. 호빵 찌기 5장은 위에서 내려다본 찜기인데 5장이 같은 시점이라 그대로 써요.
+굽기·찌기 그림은 5단계가 다 있을 때만 써요(`Art.stageImg`, `embed.py`도 덜 모이면 안 넣어요).
+**아직 없는 그림**: 스티커 3장 `sticker-bung`·`-hop`·`-burnt` (지금은 앱이 그린 스티커). 아직 안 그린 것: `char-bung-burnt`·`-gold`.
 
 아직 쓰는 곳이 없는 그림: `char-*`(붕어빵이·호빵이 캐릭터 8장), `prop-mold`, `prop-steamer`, `prop-letter`, `bg-stall-wide`, `bg-stall-tall`.
 들어오면 `art/`에 넣어 두고, 캐릭터는 효과 화면(스탬프 받기, 쿠폰 완성 등)에 넣을지 담임과 정해요.
