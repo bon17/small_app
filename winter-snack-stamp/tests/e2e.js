@@ -58,10 +58,15 @@ async function main() {
     const page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(view + ': ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/fonts|ERR_/.test(m.text())) errors.push(view + ' console: ' + m.text()); });
-    await page.exposeFunction('__mockApiNode', (req) => app.call(req.action, req.payload, { token: req.token, code: req.code }));
+    await page.exposeFunction('__mockApiNode', (req) => app.call(req.action, req.payload, { token: req.token, code: req.code, dev: req.dev }));
     await page.addInitScript(() => { window.__mockApi = (req) => window.__mockApiNode(req); });
-    const boot = JSON.stringify({ view, code: code || '', url: 'https://app.test/exec' });
-    await page.route('https://app.test/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html.replace("'__BOOT__'", boot) }));
+    // 진짜 doGet처럼 주소의 ?s=코드 / ?v=화면을 보고 BOOT를 채워요 (첫 화면에서 코드를 넣어 들어갈 때).
+    await page.route('https://app.test/**', (route) => {
+      const q = new URL(route.request().url()).searchParams;
+      const s = q.get('s'), v = q.get('v');
+      const boot = JSON.stringify({ view: s ? 'student' : (v || view), code: s || code || '', url: 'https://app.test/exec' });
+      route.fulfill({ contentType: 'text/html; charset=utf-8', body: html.replace("'__BOOT__'", boot) });
+    });
     await page.goto('https://app.test/exec', { waitUntil: 'load' });
     await page.waitForTimeout(500);
     return page;
@@ -138,7 +143,18 @@ async function main() {
   await s1.click('#prSend');
   await s1.waitForTimeout(700);
 
-  const s2 = await open('student', codes[2], phone);
+  // 2번 학생: QR 없이 첫 화면에서 코드 4자리를 넣어 들어와요. 틀린 코드는 안내가 떠요.
+  const s2 = await open('home', '', phone);
+  await s2.fill('#stuCode', '0000');
+  await s2.press('#stuCode', 'Enter');
+  await s2.waitForSelector('text=코드 다시 넣기');
+  await shot(s2, '16b-student-wrong-code');
+  await s2.click('text=코드 다시 넣기');
+  await s2.waitForSelector('#stuCode');
+  await shot(s2, '16a-home-code');
+  await s2.fill('#stuCode', codes[2]);
+  await s2.press('#stuCode', 'Enter');
+  await s2.waitForSelector('[data-act="stuTicket"]');
   await s2.waitForTimeout(600);
   await s2.click('[data-act="stuTicket"]');
   await s2.waitForTimeout(500);
@@ -190,8 +206,8 @@ async function main() {
   });
   await shot(print, '30-print-tickets', true);
   await print.evaluate(() => {
-    const kids = Array.from({ length: 8 }, (_, i) => ({ no: i + 1, name: ['김하늘', '이바다', '박구름', '최별', '정눈', '강솔', '조은비', '윤도현'][i], link: 'https://script.google.com/macros/s/TEST/exec?s=abcd' + i }));
-    const card = (s) => { const qr = qrcode(0, 'M'); qr.addData(s.link); qr.make(); return '<div class="qrcard"><div class="qr">' + qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) + '</div><div><small>🏮 2학년 3반 겨울 간식 포장마차</small><b>' + s.no + '번 ' + s.name + '</b><small>폰 카메라로 찍으면 내 스탬프·쿠폰이 열려요.</small></div></div>'; };
+    const kids = Array.from({ length: 8 }, (_, i) => ({ no: i + 1, name: ['김하늘', '이바다', '박구름', '최별', '정눈', '강솔', '조은비', '윤도현'][i], code: String(4821 + i * 637), link: 'https://script.google.com/macros/s/TEST/exec?s=' + (4821 + i * 637) }));
+    const card = (s) => Adm.qrCard(s, '2학년 3반');
     document.body.innerHTML = '<div id="printRoot" style="display:block"><div class="sheet"><div class="qrsheet">' + kids.map(card).join('') + '</div></div></div>';
   });
   await shot(print, '31-print-qr', true);

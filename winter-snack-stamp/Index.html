@@ -127,6 +127,10 @@ td.num,th.num{text-align:right}
 .lock .page-title{justify-content:center;font-size:34px}
 /* ChatGPT 그림(Art.img)은 담긴 칸 너비에 맞춰요. 교환권·스티커는 아래 규칙이 덮어써요. */
 img.pic{display:block;width:100%;height:auto}
+.codebox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:20px;padding-top:18px;border-top:2px dashed var(--line)}
+.codebox b{font-family:var(--title);font-weight:400;font-size:20px}
+.codebox input{width:118px;font-size:22px;text-align:center;letter-spacing:4px}
+.codebox input::placeholder{font-size:15px;letter-spacing:0}
 .gauge{display:flex;align-items:center;gap:12px;text-align:left}
 .gauge .pig{width:74px;flex:none}
 .padhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -301,6 +305,8 @@ img.pic{display:block;width:100%;height:auto}
 .qrcard .qr svg{width:100%;height:100%}
 .qrcard b{font-family:var(--title);font-weight:400;font-size:7mm;display:block;line-height:1.2}
 .qrcard small{display:block;font-size:3mm;color:#7A5A45;line-height:1.4}
+.qrcard .qcode{margin-top:1.5mm;color:var(--ink)}
+.qrcard .qcode b{display:inline;font-family:var(--mono);font-weight:800;font-size:5mm;letter-spacing:.8mm}
 @media print{
   @page{size:A4 portrait;margin:0}
   html,body{background:#fff !important}
@@ -354,10 +360,12 @@ const store = {
   del(k, s) { try { (s ? sessionStorage : localStorage).removeItem(k); } catch (e) {} },
 };
 let SESSION_TOKEN = '';
+/* 이 기기 표시: 학생 코드를 여러 번 틀리면 서버가 이 기기만 잠시 막아요. */
+const DEVICE = store.get('wss:dev') || (() => { const d = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); store.set('wss:dev', d); return d; })();
 
 function call(action, payload) {
   return new Promise((resolve, reject) => {
-    const req = { action, payload: payload || {}, token: SESSION_TOKEN, code: B.code };
+    const req = { action, payload: payload || {}, token: SESSION_TOKEN, code: B.code, dev: DEVICE };
     const done = (res) => (res && res.ok ? resolve(res.data) : reject(res || { code: 'ERROR', msg: '응답이 없어요.' }));
     if (window.google && google.script && google.script.run) {
       google.script.run.withSuccessHandler(done).withFailureHandler(() => reject({ code: 'NET', msg: '연결이 불안정해요. 잠시 뒤 다시 시도해요.' })).api(req);
@@ -754,7 +762,10 @@ const Home = {
       '<p class="hint" style="margin:10px 0 22px">수업을 열심히 들으면 스탬프! 스탬프를 모아 붕어빵·호빵으로 바꿔요.</p>' +
       '<div class="list"><a class="btn red big" href="' + esc(link('pad')) + '">🏫 교실 패드 (교과 선생님)</a>' +
       '<a class="btn gold big" href="' + esc(link('admin')) + '">📒 담임 관리</a></div>' +
-      '<p class="hint" style="margin-top:18px">학생은 담임 선생님이 나눠 준 <b>개인 QR 링크</b>로 들어와요.</p></div></div>');
+      '<form class="codebox" method="get" target="_top" action="' + esc(link('')) + '"><b>🎫 학생</b>' +
+      '<input name="s" id="stuCode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required placeholder="코드 4자리" aria-label="내 코드 4자리">' +
+      '<button class="btn gold" type="submit">들어가기</button></form>' +
+      '<p class="hint" style="margin-top:8px">학생은 QR을 찍거나, 담임 선생님께 받은 <b>내 코드 4자리</b>를 넣어요.</p></div></div>');
   },
 };
 
@@ -1094,7 +1105,8 @@ const Stu = {
   },
   async load(quiet) {
     try { this.set(await call('studentState')); } catch (e) {
-      if (!quiet) render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🏮 겨울 간식 포장마차</div><p style="margin-top:12px">' + esc(e.msg || '잠시 뒤 다시 열어 주세요.') + '</p></div></div>');
+      if (!quiet) render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🏮 겨울 간식 포장마차</div><p style="margin-top:12px">' + esc(e.msg || '잠시 뒤 다시 열어 주세요.') + '</p>' +
+        (e.code === 'CODE' || e.code === 'LOCKED' ? '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">코드 다시 넣기</a>' : '') + '</div></div>');
       return;
     }
     this.render();
@@ -1359,6 +1371,14 @@ Object.assign(ACTS, {
 /* ════════════════════════ 담임 관리 ════════════════════════ */
 const Adm = {
   token: store.get('wss:admin', true) || '', v: null, tab: 'status', tkFilter: 'new', tkSel: new Set(), size: 'l', logNo: '',
+  /** 학생 QR 카드 한 장: QR, 이름, 내 코드 4자리 */
+  qrCard(s, className) {
+    let svg = '';
+    try { const qr = qrcode(0, 'M'); qr.addData(s.link); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
+    return '<div class="qrcard"><div class="qr">' + svg + '</div><div><small>🏮 ' + esc(className) + ' 겨울 간식 포장마차</small><b>' + s.no + '번 ' + esc(s.name) + '</b>' +
+      '<small>폰 카메라로 찍으면 내 스탬프·쿠폰이 열려요. 내 QR과 코드는 나만 써요!</small>' +
+      '<small class="qcode">내 코드 <b>' + esc(s.code) + '</b></small></div></div>';
+  },
   async init() {
     document.body.classList.add('admin');
     SESSION_TOKEN = this.token;
@@ -1540,11 +1560,7 @@ Object.assign(ACTS, {
   },
   admQrPrint() {
     const v = Adm.v;
-    const card = (s) => {
-      let svg = '';
-      try { const qr = qrcode(0, 'M'); qr.addData(s.link); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
-      return '<div class="qrcard"><div class="qr">' + svg + '</div><div><small>🏮 ' + esc(v.className) + ' 겨울 간식 포장마차</small><b>' + s.no + '번 ' + esc(s.name) + '</b><small>폰 카메라로 찍으면 내 스탬프·쿠폰이 열려요. 내 QR은 나만 써요!</small></div></div>';
-    };
+    const card = (s) => Adm.qrCard(s, v.className);
     let html = '';
     for (let i = 0; i < v.students.length; i += 8) html += '<div class="sheet"><div class="qrsheet">' + v.students.slice(i, i + 8).map(card).join('') + '</div></div>';
     printHtml(html);

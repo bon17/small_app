@@ -41,7 +41,8 @@ function setupClass(opts = {}) {
 test('명단을 저장하면 개인 코드가 생기고, 학생은 자기 코드로만 들어와요', () => {
   const c = setupClass();
   assert.equal(Object.keys(c.codes).length, 5);
-  assert.match(c.codes[1], /^[a-z2-9]{8}$/);
+  Object.values(c.codes).forEach((code) => assert.match(code, /^[1-9]\d{3}$/, '숫자 4자리 (앞자리 0 없음)'));
+  assert.equal(new Set(Object.values(c.codes)).size, 5, '코드가 겹치지 않아요');
   assert.equal(c.me(1).me.name, '김하늘');
   const bad = c.app.call('studentState', {}, { code: 'nope' });
   assert.equal(bad.ok, false);
@@ -350,4 +351,24 @@ test('시트 메뉴 "웹앱 주소 보기"는 웹앱이 열릴 때 본 /exec 주
   assert.ok(html.includes(exec + '?v=pad') && html.includes(exec + '?v=admin'));
   assert.ok(!html.includes('/dev'));
   assert.equal(app.sandbox.serviceUrl_(), exec, '학생 링크도 /exec 주소로 만들어요');
+});
+
+test('틀린 학생 코드를 한 기기에서 5번 넣으면 그 기기만 10분 동안 막혀요', () => {
+  const c = setupClass();
+  const wrong = ['0000', '0001', '0002', '0003', '0004']; // 앞자리 0은 학생 코드로 안 나와요
+  wrong.forEach((code) => assert.equal(c.app.call('studentState', {}, { code, dev: 'phoneA' }).code, 'CODE'));
+  assert.equal(c.app.call('studentState', {}, { code: c.codes[1], dev: 'phoneA' }).code, 'LOCKED', '막힌 기기는 맞는 코드도 잠시 못 써요');
+  assert.equal(c.app.call('studentState', {}, { code: c.codes[1], dev: 'phoneB' }).ok, true, '다른 학생 기기는 그대로 돼요');
+});
+
+test('예전 영어 섞인 코드는 명단을 다시 저장하면 숫자 4자리로 바뀌어요', () => {
+  const c = setupClass();
+  const sh = c.app.ss.getSheetByName('학생');
+  sh.grid[1][2] = 'abcd2345'; // 1번 학생: 예전 모양 코드
+  assert.equal(c.app.call('studentState', {}, { code: 'abcd2345' }).ok, true, '바꾸기 전에는 예전 코드도 열려요');
+  const v = c.app.ok('saveRoster', { rows: ROSTER }, { token: c.admin });
+  const codes = v.students.map((s) => s.code);
+  codes.forEach((code) => assert.match(code, /^[1-9]\d{3}$/));
+  assert.equal(new Set(codes).size, codes.length);
+  assert.equal(v.students.find((s) => s.no === 2).code, c.codes[2], '이미 4자리인 학생은 그대로예요');
 });

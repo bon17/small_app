@@ -22,6 +22,7 @@ const COUPON_LABEL = { bung: '붕어빵', hop: '호빵' };
 const TOOL_LABEL = { star: '⭐ 열심히', raise: '🙋 적극 참여', mvp: '👑 MVP', extra: '＋ 더 주기', ready: '🔔 수업 준비' };
 const PRAISE_TOOLS = { star: true, raise: true, mvp: true };
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+const CODE_TRIES = 5; // 한 기기에서 틀린 학생 코드를 이만큼 넣으면 10분 동안 막아요
 
 function defaultSettings_() {
   return {
@@ -237,17 +238,19 @@ const HANDLERS = {
     return withLock_(function () {
       const sh = sheet_(SHEET.students, STUDENT_HEAD);
       const vals = sh.getDataRange().getValues();
-      for (let i = 1; i < vals.length; i++) if (Number(vals[i][0]) === Number(p.no)) sh.getRange(i + 1, 3).setValue(newCode_());
+      const used = {};
+      vals.forEach(function (r) { used[String(r[2])] = true; });
+      for (let i = 1; i < vals.length; i++) if (Number(vals[i][0]) === Number(p.no)) sh.getRange(i + 1, 3).setValue(newCode_(used));
       return adminView_(load_());
     });
   },
 
   /* 학생 (개인 링크) */
-  studentState: function (req) { const db = load_(); return studentView_(db, me_(db, req.code)); },
+  studentState: function (req) { const db = load_(); return studentView_(db, me_(db, req)); },
   stamp: function (req, p) {
     return withLock_(function () {
       const db = load_();
-      const me = me_(db, req.code);
+      const me = me_(db, req);
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const s = compute_(db).students[me.no];
@@ -267,7 +270,7 @@ const HANDLERS = {
   chooseFlavor: function (req, p) {
     return withLock_(function () {
       const db = load_();
-      const me = me_(db, req.code);
+      const me = me_(db, req);
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const st = compute_(db);
@@ -286,7 +289,7 @@ const HANDLERS = {
   donate: function (req, p) {
     return withLock_(function () {
       const db = load_();
-      const me = me_(db, req.code);
+      const me = me_(db, req);
       if (!db.done[p.actionId]) {
         const n = Math.floor(Number(p.n) || 0);
         const s = compute_(db).students[me.no];
@@ -300,7 +303,7 @@ const HANDLERS = {
   sendPraise: function (req, p) {
     return withLock_(function () {
       const db = load_();
-      const me = me_(db, req.code);
+      const me = me_(db, req);
       let lucky = false;
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
@@ -325,7 +328,7 @@ const HANDLERS = {
   rulesRead: function (req, p) {
     return withLock_(function () {
       const db = load_();
-      const me = me_(db, req.code);
+      const me = me_(db, req);
       const version = rulesVersion_(db.settings);
       if (compute_(db).students[me.no].rulesVersion !== version) append_([row_(T.RULES, me.no, '', { version: version }, p.actionId)]);
       return studentView_(load_(), me);
@@ -893,7 +896,11 @@ function saveRoster_(rows) {
   old.forEach(function (s) { byKey[s.no + '|' + s.name] = s.code; byNo[s.no] = s.code; });
   const sh = sheet_(SHEET.students, STUDENT_HEAD);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).clearContent();
-  const values = clean.map(function (s) { return [s.no, s.name, byKey[s.no + '|' + s.name] || byNo[s.no] || newCode_()]; });
+  // 같은 학생은 코드를 그대로 둬요. 예전 영어 섞인 코드는 이때 숫자 4자리로 바뀌어요.
+  const used = {};
+  const keep = function (c) { c = String(c || ''); if (!isCode_(c) || used[c]) return ''; used[c] = true; return c; };
+  const values = clean.map(function (s) { return [s.no, s.name, keep(byKey[s.no + '|' + s.name] || byNo[s.no])]; });
+  values.forEach(function (v) { if (!v[2]) v[2] = newCode_(used); });
   sh.getRange(2, 1, values.length, 3).setValues(values);
 }
 
@@ -990,12 +997,14 @@ function readStudents_() {
   const sh = sheet_(SHEET.students, STUDENT_HEAD);
   const vals = rowsOf_(SHEET.students, STUDENT_HEAD);
   const out = [];
+  const used = {};
+  vals.forEach(function (r) { used[String(r[2] || '').trim()] = true; });
   vals.forEach(function (r, i) {
     const no = Math.floor(Number(r[0]));
     const name = String(r[1] || '').trim();
     if (!no || !name) return;
     let code = String(r[2] || '').trim();
-    if (!code) { code = newCode_(); sh.getRange(i + 2, 3).setValue(code); }
+    if (!code) { code = newCode_(used); sh.getRange(i + 2, 3).setValue(code); }
     out.push({ no: no, name: name, code: code });
   });
   out.sort(function (a, b) { return a.no - b.no; });
@@ -1073,9 +1082,21 @@ function auth_(token, role) {
   if (!got || (got !== role && !(role === 'teacher' && got === 'admin'))) throw err_('AUTH', '다시 로그인해 주세요.');
 }
 
-function me_(db, code) {
-  const me = db.students.filter(function (s) { return s.code === String(code || ''); })[0];
-  if (!me) throw err_('CODE', '링크가 맞지 않아요. 담임 선생님께 받은 QR 링크로 들어와 주세요.');
+/**
+ * 학생 코드(숫자 4자리)로 학생을 찾아요. 남의 코드를 이것저것 넣어 맞히지 못하게,
+ * 한 기기(dev)에서 틀린 코드를 CODE_TRIES번 넣으면 10분 동안 막아요.
+ */
+function me_(db, req) {
+  const code = String((req && req.code) || '').trim();
+  const cache = CacheService.getScriptCache();
+  const key = 'badcode:' + String((req && req.dev) || '-').slice(0, 40);
+  const fails = Number(cache.get(key) || 0);
+  if (fails >= CODE_TRIES) throw err_('LOCKED', '틀린 코드를 여러 번 넣어서 10분 동안 막혔어요. 담임 선생님께 받은 내 코드를 확인해 주세요.');
+  const me = db.students.filter(function (s) { return s.code === code; })[0];
+  if (!me) {
+    cache.put(key, String(fails + 1), 600);
+    throw err_('CODE', '코드가 맞지 않아요. 담임 선생님께 받은 내 코드(숫자 4자리)나 QR로 들어와 주세요.');
+  }
   return me;
 }
 
@@ -1142,7 +1163,19 @@ function rand_(n) {
   return s;
 }
 
-function newCode_() { return rand_(8); }
+/**
+ * 학생 개인 코드: 1000~9999 숫자 4자리. 앞자리가 0이 아니어야 시트가 숫자로 바꿔 저장해도 그대로예요.
+ * used(이미 쓰는 코드 모음)와 겹치지 않게 만들고, 만든 코드도 used에 넣어요.
+ */
+function newCode_(used) {
+  used = used || {};
+  for (let i = 0; i < 500; i++) {
+    const code = String(1000 + parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 8), 16) % 9000);
+    if (!used[code]) { used[code] = true; return code; }
+  }
+  throw err_('BAD', '코드를 만들 수 없어요. 다시 눌러 주세요.');
+}
+function isCode_(c) { return /^[1-9]\d{3}$/.test(String(c || '')); }
 
 function hash_(s) {
   let h = 2166136261;
