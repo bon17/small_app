@@ -98,6 +98,8 @@ td.num,th.num{text-align:right}
 #toast.warn{background:var(--red2)}
 #toast.good{background:var(--mint)}
 .modal-bg{position:fixed;inset:0;z-index:60;background:rgba(60,35,20,.45);display:flex;align-items:center;justify-content:center;padding:14px}
+.inapp{position:fixed;inset:0;z-index:200;background:rgba(60,35,20,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.inapp .card{max-width:420px;width:100%;padding:24px 20px}
 .modal{background:var(--paper);border-radius:24px;border:3px solid var(--line);box-shadow:0 6px 0 var(--line2);width:min(560px,100%);max-height:92vh;overflow:auto;padding:20px 20px 18px;animation:pop .22s cubic-bezier(.2,1.4,.4,1)}
 .modal.wide{width:min(860px,100%)}
 .modal h2{font-family:var(--title);font-weight:400;font-size:24px;margin-bottom:10px;display:flex;gap:8px;align-items:center}
@@ -1811,8 +1813,38 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'tkSize') Adm.size = e.target.value;
 });
 
+/* ════════════════════════ 카카오톡 안 브라우저 ════════════════════════ */
+/*
+ * 카카오톡에서 링크를 누르면 카카오톡 안 브라우저로 열려요. 휴대폰 기본 브라우저로 옮기기를 권해요.
+ * 구글 틀(iframe)은 사람이 누를 때만 바깥 페이지를 움직일 수 있어서(allow-top-navigation-by-user-activation)
+ * 저절로 옮길 수는 없고, 버튼 한 번(kakaotalk://web/openExternal)으로 옮겨요.
+ */
+const InApp = {
+  isKakao() { return /KAKAOTALK/i.test(navigator.userAgent || ''); },
+  url() {
+    const base = B.url || '';
+    if (!base) return '';
+    if (B.view === 'student' && B.code) return base + '?s=' + encodeURIComponent(B.code);
+    if (B.view === 'pad' || B.view === 'admin') return base + '?v=' + B.view;
+    if (B.view === 'login') return base + '?v=stu';
+    return base;
+  },
+  init() {
+    if (!this.isKakao() || store.get('wss:inapp', true) === 'stay') return;
+    const u = this.url();
+    if (!u) return;
+    const div = document.createElement('div');
+    div.className = 'inapp';
+    div.innerHTML = '<div class="card center"><div class="page-title" style="justify-content:center">📱 카카오톡 안에서 열렸어요</div>' +
+      '<p class="hint" style="margin:10px 0 18px">카카오톡 안에서는 로그인 기억이나 인쇄가 잘 안 될 수 있어요.<br>아래 버튼을 누르면 <b>휴대폰 기본 브라우저</b>(크롬·사파리 등)로 열려요.</p>' +
+      '<a class="btn red big block" target="_top" href="' + esc('kakaotalk://web/openExternal?url=' + encodeURIComponent(u)) + '">🌐 브라우저로 열기</a>' +
+      '<button class="btn white sm" style="margin-top:12px" data-act="inappStay">그냥 카카오톡에서 볼게요</button></div>';
+    document.body.appendChild(div);
+  },
+};
+ACTS.inappStay = () => { store.set('wss:inapp', 'stay', true); const d = $('.inapp'); if (d) d.remove(); };
+
 /* ════════════════════════ 시작 ════════════════════════ */
-// 이 기기에서 학생이 들어온 적이 있으면(로그아웃 전) 첫 화면 대신 바로 그 학생 화면을 열어요.
 /*
  * 학생 로그인: 이 기기에 이름·코드가 남아 있으면(로그아웃 전) 첫 화면·공용 주소·QR 어디로 와도 바로 내 화면.
  * 없으면 로그인 화면(로고 + 이름 + 코드). QR로 왔으면 코드는 미리 들어가 있어요.
@@ -1820,6 +1852,7 @@ document.addEventListener('change', (e) => {
 (function boot() {
   const code = store.get('wss:me') || '', name = store.get('wss:meName') || '';
   if ((B.view === 'home' || B.view === 'login') && code && name) { B.view = 'student'; B.code = code; }
+  InApp.init(); // 카카오톡 안이면 "브라우저로 열기" 안내
   if (B.view === 'student') {
     if (name && code === B.code) { B.name = name; Stu.init(); } else Home.init({ mode: 'qr', code: B.code });
     return;

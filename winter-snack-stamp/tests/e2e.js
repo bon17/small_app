@@ -54,9 +54,9 @@ async function main() {
   const browser = await chromium.launch();
   const errors = [];
 
-  // login: 이 기기에 이미 로그인해 둔 학생 번호 (로그아웃 전 상태)
-  async function open(view, code, viewport, login) {
-    const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+  // login: 이 기기에 이미 로그인해 둔 학생 번호 (로그아웃 전 상태) · userAgent: 카카오톡 안 브라우저 흉내
+  async function open(view, code, viewport, login, userAgent) {
+    const ctx = await browser.newContext(Object.assign({ viewport, deviceScaleFactor: 1 }, userAgent ? { userAgent } : {}));
     const page = await ctx.newPage();
     if (login) await page.addInitScript((w) => { if (!localStorage.getItem('wss:me')) { localStorage.setItem('wss:me', w.code); localStorage.setItem('wss:meName', w.name); } }, who(login));
     page.on('pageerror', (e) => errors.push(view + ': ' + e.message));
@@ -241,6 +241,17 @@ async function main() {
   await shot(s3, '19b-student-new-ticket');
   const after = app.ok('studentState', {}, who(3));
   if (after.tickets.length !== 1 || after.tickets[0].flavor !== '고구마' || after.coupons.hop.filled !== 0) throw new Error('맛 고르기 결과가 이상해요');
+
+  // ── 카카오톡 안 브라우저: "브라우저로 열기" 안내가 뜨고, 버튼은 같은 학생 화면 주소를 바깥 브라우저로 넘겨요 ──
+  const KAKAO_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S918N; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 KAKAOTALK/25.8.2 (INAPP)';
+  const kk = await open('student', codes[1], phone, 1, KAKAO_UA);
+  await kk.waitForSelector('.inapp a', { timeout: 5000 });
+  await shot(kk, '15b-kakao-inapp');
+  const kHref = await kk.$eval('.inapp a', (a) => a.getAttribute('href'));
+  if (kHref !== 'kakaotalk://web/openExternal?url=' + encodeURIComponent('https://app.test/exec?s=' + codes[1])) throw new Error('카카오톡 바깥으로 여는 주소가 이상해요: ' + kHref);
+  await kk.click('[data-act="inappStay"]');
+  if (await kk.$('.inapp')) throw new Error('"카카오톡에서 볼게요"를 누르면 안내가 사라져야 해요');
+  if (await s1.$('.inapp')) throw new Error('카카오톡이 아니면 안내가 뜨면 안 돼요');
 
   // ── 담임 관리 ──
   const adm = await open('admin', '', { width: 1280, height: 900 });
