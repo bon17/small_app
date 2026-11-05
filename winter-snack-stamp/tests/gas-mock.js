@@ -88,19 +88,27 @@ function loadApp(opts = {}) {
   const rnd = { next: opts.random || (() => 0.99) };
   const MathMock = Object.create(Math);
   MathMock.random = () => rnd.next();
+  const web = { url: 'https://script.google.com/macros/s/TEST/exec' }; // getUrl()이 돌려줄 주소 (테스트에서 /dev로 바꿔 봐요)
+  const props = new Map();
+  const dialogs = [];
+  const ui = {
+    createMenu: () => ({ addItem() { return this; }, addToUi() {} }),
+    showModalDialog: (out, title) => dialogs.push({ title, html: out.getContent() }),
+  };
   const sandbox = {
     console,
     Math: MathMock,
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, getActive: () => ss, getUi: () => ({ createMenu: () => ({ addItem() { return this; }, addToUi() {} }) }) },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss, getActive: () => ss, getUi: () => ui },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props.has(k) ? props.get(k) : null), setProperty: (k, v) => props.set(k, String(v)) }) },
     Utilities: { formatDate, getUuid: () => crypto.randomUUID() },
     CacheService: { getScriptCache: () => ({ get: (k) => (cache.has(k) ? cache.get(k) : null), put: (k, v) => cache.set(k, String(v)), remove: (k) => cache.delete(k) }) },
     LockService: { getScriptLock: () => ({ tryLock: () => true, waitLock: () => {}, releaseLock: () => {} }) },
-    ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }) },
+    ScriptApp: { getService: () => ({ getUrl: () => web.url }) },
     HtmlService: {
       // 진짜 Apps Script처럼 /* 주석 */을 지운 내용을 돌려줘요.
       createHtmlOutputFromFile: (name) => ({ getContent: () => fs.readFileSync(path.join(ROOT, name + '.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '') }),
       createHtmlOutput: (html) => {
-        const o = { html, getContent: () => html, setTitle: () => o, addMetaTag: () => o };
+        const o = { html, getContent: () => html, setTitle: () => o, addMetaTag: () => o, setWidth: () => o, setHeight: () => o };
         return o;
       },
     },
@@ -109,7 +117,7 @@ function loadApp(opts = {}) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'Code.gs'), 'utf8'), sandbox, { filename: 'Code.gs' });
   sandbox.setup();
   const app = {
-    ss, sandbox, rnd,
+    ss, sandbox, rnd, web, props, dialogs,
     call(action, payload = {}, extra = {}) {
       const res = sandbox.api(Object.assign({ action, payload }, extra));
       return JSON.parse(JSON.stringify(res));

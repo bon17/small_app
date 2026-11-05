@@ -58,7 +58,9 @@ function defaultSettings_() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const view = p.s ? 'student' : (p.v === 'admin' ? 'admin' : (p.v === 'pad' ? 'pad' : 'home'));
-  const boot = { view: view, code: String(p.s || ''), url: serviceUrl_() };
+  const url = serviceUrl_();
+  rememberUrl_(url);
+  const boot = { view: view, code: String(p.s || ''), url: url };
   // Apps Script는 HTML 파일을 읽을 때 /* 주석 */을 지워요. 그래서 자리 표시는 주석이 아니라 글자('__BOOT__')로 해요.
   const html = HtmlService.createHtmlOutputFromFile('Index').getContent()
     .replace("'__BOOT__'", JSON.stringify(boot).replace(/</g, '\\u003c'));
@@ -69,6 +71,7 @@ function doGet(e) {
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('🏮 겨울간식 스탬프')
+    .addItem('🔗 웹앱 주소 보기', 'showUrls')
     .addItem('처음 설정하기 (시트 만들기)', 'setup')
     .addToUi();
 }
@@ -1087,7 +1090,41 @@ function withLock_(fn) {
 function err_(code, msg) { return new Error(code + ': ' + msg); }
 function now_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
-function serviceUrl_() { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } }
+/**
+ * 웹앱 주소(…/exec). 시트 메뉴처럼 웹앱 밖에서 부르면 구글이 선생님만 열 수 있는 …/dev 주소를 줄 때가 있어요.
+ * 그래서 웹앱이 열릴 때 본 /exec 주소를 저장해 두고(rememberUrl_), /exec가 아니면 저장한 주소를 써요.
+ */
+function serviceUrl_() {
+  let url = '';
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  if (/\/exec$/.test(url)) return url;
+  try { return PropertiesService.getScriptProperties().getProperty('webAppUrl') || url; } catch (e) { return url; }
+}
+function rememberUrl_(url) {
+  if (!/\/exec$/.test(url)) return;
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (props.getProperty('webAppUrl') !== url) props.setProperty('webAppUrl', url);
+  } catch (e) {}
+}
+
+/** 시트 메뉴 "🔗 웹앱 주소 보기": 교실 패드·담임 관리·첫 화면 주소를 보여 줘요. */
+function showUrls() {
+  const url = serviceUrl_();
+  const h = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  const row = function (label, link) {
+    return '<p><b>' + label + '</b><br><input readonly value="' + h(link) + '" onclick="this.select()"> <a href="' + h(link) + '" target="_blank">열기</a></p>';
+  };
+  const ok = /\/exec$/.test(url);
+  const body = ok
+    ? row('🏫 교실 패드 (교과 선생님)', url + '?v=pad') + row('📒 담임 관리', url + '?v=admin') + row('🏮 첫 화면', url) +
+      '<p class="hint">주소 칸을 누르면 전체가 골라져요. Ctrl+C로 복사해요.<br>학생 개인 링크·QR은 담임 관리 → 명단·QR에 있어요.</p>'
+    : '<p>아직 웹앱 주소를 몰라요.</p><p class="hint">배포한 웹앱 주소(…/exec)를 브라우저에서 한 번 열고 나서 다시 눌러 주세요.<br>' +
+      '배포 전이라면 Apps Script 편집기에서 <b>배포 → 새 배포 → 웹 앱</b>을 먼저 해요.</p>';
+  const html = '<style>body{font-family:sans-serif;font-size:14px;color:#4A2E1E;margin:4px}p{margin:0 0 14px;line-height:1.5}' +
+    'input{width:80%;padding:6px;font-size:13px;border:1px solid #DCC8AA;border-radius:6px}.hint{color:#7A5A45;font-size:13px}</style>' + body;
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(560).setHeight(ok ? 330 : 170), '🔗 웹앱 주소');
+}
 function studentByNo_(db, no) { return db.students.filter(function (s) { return s.no === Number(no); })[0] || null; }
 function nameOf_(db, no) { const s = studentByNo_(db, no); return s ? s.name : ''; }
 function clampInt_(v, lo, hi) { const n = Math.floor(Number(v)); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); }

@@ -335,3 +335,19 @@ test('웹앱 주소로 열면 화면 종류와 앱 주소가 BOOT에 들어가�
   assert.equal(boot({}).view, 'home');
   assert.deepEqual(boot({ s: 'abc123' }), { view: 'student', code: 'abc123', url: 'https://script.google.com/macros/s/TEST/exec' });
 });
+
+test('시트 메뉴 "웹앱 주소 보기"는 웹앱이 열릴 때 본 /exec 주소를 보여 줘요 (메뉴에서 /dev 주소를 받아도)', () => {
+  const app = loadApp();
+  const exec = app.web.url;
+  app.web.url = exec.replace(/exec$/, 'dev');
+  app.sandbox.showUrls();
+  assert.match(app.dialogs.pop().html, /아직 웹앱 주소를 몰라요/, '웹앱을 한 번도 안 열었으면 /dev 주소를 보여 주지 않아요');
+  app.web.url = exec;
+  app.sandbox.doGet({ parameter: {} }); // 누군가 웹앱(/exec)을 열면 주소를 저장해요
+  app.web.url = exec.replace(/exec$/, 'dev');
+  app.sandbox.showUrls();
+  const html = app.dialogs.pop().html;
+  assert.ok(html.includes(exec + '?v=pad') && html.includes(exec + '?v=admin'));
+  assert.ok(!html.includes('/dev'));
+  assert.equal(app.sandbox.serviceUrl_(), exec, '학생 링크도 /exec 주소로 만들어요');
+});
