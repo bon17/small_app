@@ -9,7 +9,7 @@
 한 번에 많이 올리다 "The file is too large" 오류가 난 적이 있어서, 5~10장씩 나눠 올리라고 안내했어요.
 
 1. `git fetch origin claude/wonderful-cori-ly4uot && git checkout claude/wonderful-cori-ly4uot && git pull`
-2. `winter-snack-stamp/art/` 안의 그림(PNG·JPG·WebP) 목록을 봐요. **하나도 없으면** 담임에게 [art/README.md](art/README.md)의 올리는 방법(링크, 5~10장씩, Commit directly to 이 브랜치)을 다시 알려 줘요.
+2. `winter-snack-stamp/art/` 안의 그림(PNG·JPG·WebP) 목록을 봐요. GitHub 웹으로 올리면 **저장소 맨 위 폴더**에 들어갈 때가 있어요(`git show --stat HEAD`). 그러면 `git mv`로 `art/`에 옮겨요. **하나도 없으면** 담임에게 [art/README.md](art/README.md)의 올리는 방법(링크, 5~10장씩, Commit directly to 이 브랜치)을 다시 알려 줘요.
 3. 그림을 **하나씩 열어 보고** [ART_PROMPTS.md](ART_PROMPTS.md)의 어느 그림인지 맞춰요.
    ChatGPT 기본 이름(예: `ChatGPT Image ….png`)이면 `git mv`로 정해진 이름으로 바꿔요. 이름은 영어 소문자·숫자·`-`만 돼요.
 4. 그림마다 확인할 것:
@@ -19,7 +19,7 @@
    - 스티커(`sticker-*`)는 배경이 투명하거나 흰 테두리로 깔끔한지
    - 글자가 들어가 있지 않은지
    - 이상한 그림은 담임에게 무엇이 문제인지 말하고 다시 그릴 프롬프트를 줘요.
-5. `cd winter-snack-stamp && python3 tools/embed.py` → `Index.html`에 그림이 들어가요(512px WebP로 줄여서).
+5. `cd winter-snack-stamp && python3 tools/embed.py` → `Index.html`에 그림이 들어가요(512px WebP로 줄여서). 앱 코드가 부르지 않는 그림(`char-*` 등)은 "앱에서 아직 안 써요"로 건너뛰어요. 새 그림을 쓰려면 먼저 코드에서 `Art.img('이름', …)`으로 불러요.
 6. `node --test tests/*.test.js` (16개 통과해야 해요) → `node tests/e2e.js <스크린샷 폴더>`
    스크린샷에서 그림이 쿠폰 창·쿠폰 카드·맛 고르기·교환권·저금통에 잘 맞는지(잘림, 크기, 배경색) 보고, 필요하면 CSS를 고쳐요.
 7. 커밋하고 `git push -u origin claude/wonderful-cori-ly4uot`.
@@ -35,6 +35,10 @@
 | `flavor-bung-choux`, `flavor-bung-pat` | 맛 고르기·교환권 (슈크림, 팥) |
 | `flavor-hop-pizza`, `flavor-hop-danpat`, `flavor-hop-veggie`, `flavor-hop-goguma` | 맛 고르기·교환권 (피자, 단팥, 야채, 고구마) |
 | `prop-piggy`, `prop-batter`, `prop-bag` | 저금통, 반죽, 다 채운 뒤 봉투 |
+
+**받은 그림 (11/5)**: `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy` → 앱에 넣음. `char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad` → `art/`에만 둠.
+캐릭터는 프롬프트와 달리 팔다리·요리사 모자·앞치마가 있지만 담임이 고른 모습이고 6장이 서로 잘 맞아요.
+**아직 없는 그림 (먼저 필요한 17장)**: `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `prop-batter`, `prop-bag`.
 
 아직 쓰는 곳이 없는 그림: `char-*`(붕어빵이·호빵이 캐릭터 8장), `prop-mold`, `prop-steamer`, `prop-letter`, `bg-stall-wide`, `bg-stall-tall`.
 들어오면 `art/`에 넣어 두고, 캐릭터는 효과 화면(스탬프 받기, 쿠폰 완성 등)에 넣을지 담임과 정해요.
@@ -78,7 +82,7 @@
 1. 위 0번: 그림 확인·이름 맞추기·넣기·화면 확인
 2. 캐릭터 그림이 오면 효과 화면에 넣을지 정하기
 3. 실제 구글시트에 배포해서 확인 (속도: 기록이 수천 줄일 때, 패드·학생 폰·PC 동시 사용)
-4. 교실 포스터: 앞장은 담임이 직접 만들어요. 뒷장 문구는 PLAN.md에 있어요
+4. 교실 포스터: 담임이 앞장·뒷장을 만들어 보여 줬어요(11/5). 뒷장 오타 2개(2번 "받죽"→반죽, 3번 "이벤프"→이벤트)와 앞장 기간 "11월 9일 ~ 12월 4일"(4주, 정한 기간은 3주)을 담임에게 알렸어요. 담임 관리 → 설정의 활동 기간도 포스터 날짜와 같아야 해요
 
 ## 5. 지킬 것
 

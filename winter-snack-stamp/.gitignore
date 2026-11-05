@@ -4,3 +4,4 @@
 *.csv
 # 화면 확인 스크린샷
 tests/shots/
+__pycache__/
