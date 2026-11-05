@@ -33,6 +33,7 @@ function setup() {
   award('extra', [2], { amount: 11, reason: '봉사' });
   app.ok('penalty', { lesson: L, students: [4], amount: 1, reason: '잠', actionId: aid() }, { token: teacher });
   app.ok('endLesson', { lesson: L, actionId: aid() }, { token: teacher });
+  app.backdateLesson(L, 1); // 어제 수업으로 바꿔서 오늘 되찾기 찬스가 열리게
   const stu = (no, action, p) => app.ok(action, Object.assign({ actionId: aid() }, p || {}), { code: codes[no] });
   stu(1, 'stamp', { coupon: 'bung', n: 14 });
   stu(1, 'stamp', { coupon: 'hop', n: 6 });
@@ -77,6 +78,7 @@ async function main() {
   await shot(pad, '02-pad-setup');
   await pad.click('[data-act="padStart"]');
   await pad.waitForSelector('.names');
+  await shot(pad, '02b-pad-class-start');
   for (const no of [1, 4, 7]) await pad.click('[data-act="padPick"][data-no="' + no + '"]');
   await pad.click('[data-act="padTool"][data-tool="star"]');
   await pad.waitForTimeout(600);

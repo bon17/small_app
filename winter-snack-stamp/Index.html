@@ -134,6 +134,10 @@ td.num,th.num{text-align:right}
 .save.retry{color:var(--red)}
 .readybar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#EAF3F8;border:2px solid #CFE3EC;border-radius:18px;padding:10px 14px;margin-bottom:12px}
 .readybar b{font-family:var(--title);font-weight:400;font-size:20px}
+.recov{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FFF1DE;border:2px solid #F3C98F;border-radius:18px;padding:8px 14px;margin-bottom:12px}
+.recov b{font-family:var(--title);font-weight:400;font-size:19px}
+.name.rc{border-color:#F3C98F}
+.name .rcp{display:inline-block;font-family:var(--body);font-size:11.5px;font-weight:800;color:#B86A12;background:#FFE7C2;border-radius:999px;padding:0 7px;letter-spacing:0;vertical-align:middle}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
 .name{position:relative;border:3px solid var(--line);background:#fff;border-radius:18px;padding:10px 8px 8px;text-align:center;box-shadow:0 3px 0 var(--line);min-height:84px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
@@ -861,7 +865,10 @@ const Pad = {
     const v = this.view, L = v.lesson;
     const n = this.sel.size;
     const status = { ok: '<span class="save">✓ 저장됨</span>', saving: '<span class="save saving">저장 중…</span>', retry: '<span class="save retry">⚠ 연결 끊김 · 다시 시도 중</span>' }[this.status];
-    const names = v.students.map((s) => '<button class="name' + (this.sel.has(s.no) ? ' on' : '') + '" data-act="padPick" data-no="' + s.no + '"><span class="no">' + s.no + '</span><div class="nm">' + esc(s.name) + '</div><div class="mk">' + this.marksHtml(v.marks[s.no]) + '</div></button>').join('');
+    const rec = v.recoverable || [];
+    const names = v.students.map((s) => '<button class="name' + (this.sel.has(s.no) ? ' on' : '') + (rec.indexOf(s.no) >= 0 ? ' rc' : '') + '" data-act="padPick" data-no="' + s.no + '"><span class="no">' + s.no + '</span><div class="nm">' + esc(s.name) + '</div><div class="mk">' + (rec.indexOf(s.no) >= 0 ? '<span class="rcp">🔄 찬스</span> ' : '') + this.marksHtml(v.marks[s.no]) + '</div></button>').join('');
+    const recov = rec.length ? '<div class="recov"><b>🔄 되찾기 찬스</b>' + rec.map((no) => '<button class="chip' + (this.sel.has(no) ? ' on' : '') + '" data-act="padPick" data-no="' + no + '">' + esc(this.nameOf(no)) + '</button>').join('') +
+      '<span class="small grow">전날까지 빼기를 당한 학생이에요. 칭찬(⭐·🙋·👑)을 받으면 1개를 돌려받아요.</span></div>' : '';
     const one = n === 1;
     return '<div class="wrap wide">' +
       '<div class="padhead"><div class="now grow">' + (L.period > 0 ? L.period + '교시 · ' : '') + esc(L.subject) + '</div>' +
@@ -872,7 +879,7 @@ const Pad = {
       '<div class="toolbar"><button class="btn white sm" data-act="padAll">전체 선택</button><button class="btn white sm" data-act="padNone">선택 해제</button>' +
       '<span class="grow" style="font-weight:800">' + (n ? n + '명 선택됨' : '이름을 눌러 골라요') + '</span>' +
       '<button class="btn white sm" data-act="padUndo"' + (this.undo.length && !this.queue.length ? '' : ' disabled') + '>↶ 되돌리기</button></div>' +
-      '<div class="names">' + names + '</div></div>' +
+      recov + '<div class="names">' + names + '</div></div>' +
       '<div class="tools">' +
       '<button class="btn gold" data-act="padTool" data-tool="star"' + (n ? '' : ' disabled') + '>⭐ 열심히 <small>+1</small></button>' +
       '<button class="btn gold" data-act="padTool" data-tool="raise"' + (n ? '' : ' disabled') + '>🙋 적극 참여 <small>+1</small></button>' +
@@ -1114,7 +1121,8 @@ const Stu = {
       (dday !== null && dday >= 0 ? '<span class="pill">❄ D-' + dday + '</span>' : '') + '<button class="btn white sm" data-act="stuRules">📜 규칙</button></div>' +
       '<div class="card"><div class="batter"><div class="art">' + Art.batter() + '</div><div class="grow"><div class="small muted" style="font-weight:800">아직 안 찍은 반죽</div>' +
       '<div class="big">' + (unst < 0 ? '<span class="minus">' + unst + '</span>' : unst + '개') + '</div>' +
-      (unst < 0 ? '<div class="hint">다음에 받는 스탬프로 ' + (-unst) + '개를 갚아요.</div>' : '<div class="hint">쿠폰에 찍거나 저금통에 기부할 수 있어요.</div>') + '</div></div>' +
+      (unst < 0 ? '<div class="hint">다음에 받는 스탬프로 ' + (-unst) + '개를 갚아요.</div>' : '<div class="hint">쿠폰에 찍거나 저금통에 기부할 수 있어요.</div>') +
+      (v.recover && v.recover.ready ? '<div class="pill mint" style="margin-top:6px">🔄 되찾기 찬스! 수업에서 칭찬받으면 1개를 돌려받아요</div>' : v.recover && v.recover.waiting ? '<div class="pill gray" style="margin-top:6px">🔄 내일부터 되찾기 찬스가 열려요</div>' : '') + '</div></div>' +
       '<div class="row" style="margin-top:12px"><button class="btn gold grow" data-act="stuCoupon" data-c="bung"' + (unst > 0 && !full('bung') ? '' : ' disabled') + '>붕어빵 쿠폰에 찍기</button><button class="btn gold grow" data-act="stuCoupon" data-c="hop"' + (unst > 0 && !full('hop') ? '' : ' disabled') + '>호빵 쿠폰에 찍기</button></div></div>' +
       '<div class="card"><h3>🎫 내 쿠폰 <small>칸이 찰수록 노릇노릇·따끈따끈해져요</small></h3><div class="cpn-cards">' + card('bung') + card('hop') + '</div></div>' +
       '<div class="card"><h3>🎫 내 교환권 <small>' + tickets.length + '장</small></h3>' + (v.tickets.length ? '<div class="row">' + v.tickets.slice().reverse().map((t) => '<button class="btn ' + (t.exchanged ? 'white' : 'gold') + ' sm" data-act="stuTicket" data-no="' + esc(t.no) + '">' + esc(t.flavor + ' ' + (t.coupon === 'hop' ? '호빵' : '붕어빵')) + (t.exchanged ? ' ✔' : '') + '</button>').join('') + '</div>' : '<div class="empty">쿠폰을 다 채우면 교환권이 나와요!</div>') + '</div>' +
@@ -1136,7 +1144,7 @@ const Stu = {
       '<li>👑 수업 MVP(수업마다 1명) <b>+' + r.mvpStamps + '</b></li><li>🔔 종이 쳤을 때 모두 앉아서 조용히 하고 교과서·프린트를 꺼내 두면 <b>반 전체 +1</b>. 한 명이라도 안 되면 없어요!</li>' +
       '<li>✨ 저금통에 기부를 하면, 칭찬을 받을 때 <b>황금 붕어빵(+' + r.goldenAmount + ')</b>이 뜰 수 있어요.</li></ul>' +
       '<h4>2. 스탬프가 빠질 때</h4><ul><li>대놓고 자거나 수업을 방해하면 스탬프가 빠져요.</li><li>빠지는 순서: 아직 안 찍은 반죽 → 쿠폰에 붙인 스티커(최근 것부터). 그래도 없으면 마이너스가 되고, 다음에 받는 스탬프로 갚아요.</li>' +
-      '<li>다 채운 쿠폰(교환권)은 빼앗기지 않아요.</li><li>🔄 <b>되찾기 찬스</b>: 빼기를 당한 다음 수업에서 칭찬을 받으면 1개를 돌려받아요.</li></ul>' +
+      '<li>다 채운 쿠폰(교환권)은 빼앗기지 않아요.</li><li>🔄 <b>되찾기 찬스</b>: 빼기를 당한 <b>다음 날부터</b>, 수업에서 칭찬을 받으면 1개를 돌려받아요. 빼기 1번에 한 번이에요. (반 전체가 함께 빠진 것은 제외)</li></ul>' +
       '<h4>3. 쿠폰 채우기</h4><ul><li>받은 스탬프는 🥣 반죽으로 쌓여요. <b>붕어빵 쿠폰(' + r.cells.bung + '칸)</b>과 <b>호빵 쿠폰(' + r.cells.hop + '칸)</b> 중에 골라서 찍어요.</li>' +
       '<li>칸이 찰수록 붕어빵은 노릇노릇 구워지고, 호빵은 따끈따끈해져요.</li><li>다 채우면 맛을 골라요. 붕어빵은 ' + esc(flav('bung')) + ', 호빵은 ' + esc(flav('hop')) + '.</li>' +
       '<li>맛마다 수량이 정해져 있어요. 쿠폰을 먼저 채운 친구가 먼저 골라요. 원하는 맛이 다 떨어지면 다른 맛을 골라야 해요!</li>' +

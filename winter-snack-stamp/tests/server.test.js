@@ -136,9 +136,10 @@ test('다 채운 쿠폰은 빼앗기지 않고, 맛을 고르면 교환권이 �
   assert.equal(v.stock.find((s) => s.flavor === '팥').exchanged, 1);
 });
 
-test('되찾기 찬스: 개인 빼기 뒤 다음 수업에서 칭찬받으면 1개, 전체 빼기는 없음', () => {
+test('되찾기 찬스: 개인 빼기 다음 날부터 칭찬받으면 1개, 패드에 따로 보여요, 전체 빼기는 없음', () => {
   const c = setupClass();
   let L = c.start('국어', 1);
+  const first = L;
   c.award(L, 'extra', [1, 2], { amount: 5 });
   c.penalty(L, [1], 3);
   c.penalty(L, [2], 2, { bulk: true });
@@ -147,10 +148,21 @@ test('되찾기 찬스: 개인 빼기 뒤 다음 수업에서 칭찬받으면 1�
   c.end(L);
   L = c.start('영어', 2);
   r = c.award(L, 'star', [1, 2]);
+  assert.deepEqual(r.recovered, [], '같은 날 다른 수업에서도 아직 안 돼요');
+  assert.deepEqual(r.view.recoverable, []);
+  assert.deepEqual(c.me(1).recover, { ready: 0, waiting: 1 }, '학생 화면에는 내일부터 열린다고 보여요');
+  c.end(L);
+  c.app.backdateLesson(first, 1);
+  assert.deepEqual(c.app.ok('padState', {}, { token: c.teacher }).recoverable, [1], '다음 날 패드에 되찾기 찬스 학생이 따로 떠요 (전체 빼기 2번은 없음)');
+  assert.deepEqual(c.me(1).recover, { ready: 1, waiting: 0 });
+  L = c.start('수학', 3);
+  r = c.award(L, 'star', [1, 2]);
   assert.deepEqual(r.recovered, [1]);
+  assert.deepEqual(r.view.recoverable, []);
   r = c.award(L, 'raise', [1]);
   assert.deepEqual(r.recovered, [], '빼기 1번당 한 번만 돌려받아요');
-  assert.equal(c.me(1).unstamped, 5 - 3 + 1 + 1 + 1 + 1);
+  assert.equal(c.me(1).unstamped, 5 - 3 + 1 + 1 + 1 + 1 + 1, '국어⭐ 영어⭐ 수학⭐ 되찾기 수학🙋');
+  assert.deepEqual(c.me(1).recover, { ready: 0, waiting: 0 });
 });
 
 test('황금 붕어빵: 기부한 만큼만 확률이 생기고, 수업에서 칭찬을 처음 받을 때 한 번만 뽑아요', () => {
@@ -182,6 +194,7 @@ test('되돌리기는 그 동작에서 생긴 황금·되찾기까지 함께 취
   c.student(1, 'donate', { n: 20 });
   c.penalty(L, [1], 2);
   c.end(L);
+  c.app.backdateLesson(L, 1);
   L = c.start();
   const act = aid();
   const r = c.app.ok('award', { lesson: L, tool: 'star', students: [1], actionId: act }, { token: c.teacher });

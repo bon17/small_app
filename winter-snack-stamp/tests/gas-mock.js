@@ -120,6 +120,18 @@ function loadApp(opts = {}) {
     },
     log() { return sandbox.readLog_(); },
     setRandom(fn) { rnd.next = fn; },
+    /** 수업 날짜를 며칠 전으로 바꿔요 (다음 날부터 열리는 되찾기 찬스 확인용). */
+    backdateLesson(lessonId, days) {
+      const d = new Date(Date.now() - days * 86400000);
+      const date = formatDate(d, 'Asia/Seoul', 'yyyy-MM-dd');
+      ss.getSheetByName('기록').grid.forEach((row) => {
+        if (row[2] !== '수업시작' || !String(row[5]).includes(lessonId)) return;
+        const detail = JSON.parse(row[5]);
+        detail.date = date;
+        row[5] = JSON.stringify(detail);
+        row[1] = date + String(row[1]).slice(10);
+      });
+    },
   };
   return app;
 }

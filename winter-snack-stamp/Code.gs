@@ -379,10 +379,8 @@ function award_(p) {
         result.golden.push({ no: no, name: s.name, amount: cfg.golden.amount });
       }
     }
-    // 되찾기 찬스: 앞선 수업에서 빼기를 당했으면 칭찬 1번에 1개를 돌려받아요.
-    const pen = s.penalties.filter(function (x) {
-      return x.recoverable && !x.recovered && x.lesson !== L.id && st.lessons[x.lesson] && st.lessons[x.lesson].idx < L.idx;
-    })[0];
+    // 되찾기 찬스: 빼기를 당한 다음 날부터, 칭찬 1번에 빼기 1건씩 1개를 돌려받아요.
+    const pen = s.penalties.filter(function (x) { return x.recoverable && !x.recovered && x.date < L.date; })[0];
     if (pen) {
       pen.recovered = true;
       rows.push(row_(T.RECOVER, no, 1, { lesson: L.id, penalty: pen.id }, p.actionId));
@@ -484,7 +482,7 @@ function compute_(db) {
       case T.PENALTY:
         if (!s) break;
         loseStamps_(s, e.amount, cfg, e.ts); s.lost += e.amount;
-        s.penalties.push({ id: e.id, lesson: d.lesson, recoverable: !d.bulk || !!cfg.recoverBulk, recovered: false });
+        s.penalties.push({ id: e.id, lesson: d.lesson, date: L ? L.date : String(e.ts).slice(0, 10), recoverable: !d.bulk || !!cfg.recoverBulk, recovered: false });
         mark(s, d.lesson).minus = (mark(s, d.lesson).minus || 0) + e.amount;
         hist(s, e, subjectOf(d) + '➖ 빼기 (' + (d.reason || '기타') + ')', -e.amount);
         break;
@@ -584,6 +582,15 @@ function loseStamps_(s, k, cfg, ts) {
   s.lastLoss = ts;
 }
 
+/** 되찾기 찬스: ready = 오늘 칭찬받으면 돌려받을 수 있는 빼기 수, waiting = 내일부터 열리는 빼기 수 */
+function recoverState_(s, today) {
+  const open = s.penalties.filter(function (x) { return x.recoverable && !x.recovered; });
+  return {
+    ready: open.filter(function (x) { return x.date < today; }).length,
+    waiting: open.filter(function (x) { return x.date >= today; }).length,
+  };
+}
+
 function activeLesson_(st, cfg) {
   const now = new Date().getTime();
   for (let i = st.lessonList.length - 1; i >= 0; i--) {
@@ -654,6 +661,7 @@ function padView_(db) {
     students: db.students.map(function (s) { return { no: s.no, name: s.name }; }),
     lesson: L ? { id: L.id, period: L.period, subject: L.subject, ts: L.ts, ready: L.ready, mvp: L.mvp, endsAt: parseTs_(L.ts).getTime() + Number(cfg.lessonMinutes) * 60000 } : null,
     marks: marks,
+    recoverable: db.students.filter(function (s) { return recoverState_(st.students[s.no], today).ready > 0; }).map(function (s) { return s.no; }),
     piggy: piggyView_(cfg, st),
     todayMvp: mvps,
     subjects: cfg.subjects,
@@ -727,6 +735,7 @@ function studentView_(db, me) {
     rulesRead: s.rulesVersion === version,
     received: s.received,
     lost: s.lost,
+    recover: recoverState_(s, today_()),
     today: today_(),
     validUntil: validUntil,
   };
