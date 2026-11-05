@@ -326,7 +326,7 @@ img.pic{display:block;width:100%;height:auto}
 <div id="toast" role="status"></div>
 <div id="printRoot"></div>
 
-<script>const BOOT = /*__BOOT__*/null;</script>
+<script>const BOOT = '__BOOT__';</script>
 <script>
 /* 그림 교체: ChatGPT로 그린 PNG를 tools/embed.py로 넣으면 여기에 채워져요. 비어 있으면 앱이 그린 기본 그림을 써요. */
 const ART_IMAGES = {/*ART:BEGIN*/
@@ -342,7 +342,7 @@ const ART_IMAGES = {/*ART:BEGIN*/
 /* ════════════════════════ 기본 도구 ════════════════════════ */
 const Q = new URLSearchParams(location.search);
 const B = (function () {
-  const b = (typeof BOOT !== 'undefined' && BOOT) || {};
+  const b = (typeof BOOT === 'object' && BOOT) || {};
   return { view: b.view || (Q.get('s') ? 'student' : (Q.get('v') || 'home')), code: b.code || Q.get('s') || '', url: b.url || '' };
 })();
 const $ = (s, r) => (r || document).querySelector(s);

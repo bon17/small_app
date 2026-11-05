@@ -59,8 +59,9 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   const view = p.s ? 'student' : (p.v === 'admin' ? 'admin' : (p.v === 'pad' ? 'pad' : 'home'));
   const boot = { view: view, code: String(p.s || ''), url: serviceUrl_() };
+  // Apps Script는 HTML 파일을 읽을 때 /* 주석 */을 지워요. 그래서 자리 표시는 주석이 아니라 글자('__BOOT__')로 해요.
   const html = HtmlService.createHtmlOutputFromFile('Index').getContent()
-    .replace('/*__BOOT__*/null', JSON.stringify(boot).replace(/</g, '\\u003c'));
+    .replace("'__BOOT__'", JSON.stringify(boot).replace(/</g, '\\u003c'));
   return HtmlService.createHtmlOutput(html)
     .setTitle('우리 반 겨울 간식 포장마차')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');

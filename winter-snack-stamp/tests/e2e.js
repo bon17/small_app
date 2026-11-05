@@ -48,7 +48,8 @@ function setup() {
 
 async function main() {
   const { app, codes, admin } = setup();
-  const html = fs.readFileSync(path.join(__dirname, '..', 'Index.html'), 'utf8');
+  // 진짜 Apps Script처럼 /* 주석 */을 지운 HTML로 띄워요.
+  const html = fs.readFileSync(path.join(__dirname, '..', 'Index.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const browser = await chromium.launch();
   const errors = [];
 
@@ -60,7 +61,7 @@ async function main() {
     await page.exposeFunction('__mockApiNode', (req) => app.call(req.action, req.payload, { token: req.token, code: req.code }));
     await page.addInitScript(() => { window.__mockApi = (req) => window.__mockApiNode(req); });
     const boot = JSON.stringify({ view, code: code || '', url: 'https://app.test/exec' });
-    await page.route('https://app.test/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html.replace('/*__BOOT__*/null', boot) }));
+    await page.route('https://app.test/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html.replace("'__BOOT__'", boot) }));
     await page.goto('https://app.test/exec', { waitUntil: 'load' });
     await page.waitForTimeout(500);
     return page;

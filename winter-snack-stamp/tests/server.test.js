@@ -321,3 +321,17 @@ test('모든 맛이 품절되면 학생·담임 화면에 이벤트가 일찍 �
   c.stock([{ coupon: 'bung', flavor: '팥', stocked: 3 }]);
   assert.equal(c.me(1).soldOutAll, false, '더 사 오면 사라져요');
 });
+
+test('웹앱 주소로 열면 화면 종류와 앱 주소가 BOOT에 들어가요 (Apps Script가 주석을 지워도)', () => {
+  const app = loadApp();
+  const boot = (q) => {
+    const html = app.sandbox.doGet({ parameter: q }).getContent();
+    const m = html.match(/const BOOT = (\{.*?\});/);
+    assert.ok(m, 'BOOT 자리를 찾아 채워야 해요');
+    return JSON.parse(m[1]);
+  };
+  assert.deepEqual(boot({ v: 'admin' }), { view: 'admin', code: '', url: 'https://script.google.com/macros/s/TEST/exec' });
+  assert.equal(boot({ v: 'pad' }).view, 'pad');
+  assert.equal(boot({}).view, 'home');
+  assert.deepEqual(boot({ s: 'abc123' }), { view: 'student', code: 'abc123', url: 'https://script.google.com/macros/s/TEST/exec' });
+});

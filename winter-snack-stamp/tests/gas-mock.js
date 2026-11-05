@@ -97,7 +97,8 @@ function loadApp(opts = {}) {
     LockService: { getScriptLock: () => ({ tryLock: () => true, waitLock: () => {}, releaseLock: () => {} }) },
     ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }) },
     HtmlService: {
-      createHtmlOutputFromFile: (name) => ({ getContent: () => fs.readFileSync(path.join(ROOT, name + '.html'), 'utf8') }),
+      // 진짜 Apps Script처럼 /* 주석 */을 지운 내용을 돌려줘요.
+      createHtmlOutputFromFile: (name) => ({ getContent: () => fs.readFileSync(path.join(ROOT, name + '.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '') }),
       createHtmlOutput: (html) => {
         const o = { html, getContent: () => html, setTitle: () => o, addMetaTag: () => o };
         return o;
