@@ -62,7 +62,8 @@
 ## 그림 바꾸기 (ChatGPT로 그린 그림)
 
 지금은 앱이 직접 그린 기본 그림(스티커, 굽기·찌기 5단계, 맛별 그림, 저금통 등)이 들어 있어요.
-[`ART_PROMPTS.md`](ART_PROMPTS.md)의 파일 이름 그대로 PNG를 `art/` 폴더에 넣고 아래를 실행하면 `Index.html`에 그림이 들어가요.
+[`ART_PROMPTS.md`](ART_PROMPTS.md)의 파일 이름 그대로 그림(PNG·JPG·WebP)을 `art/` 폴더에 넣고 아래를 실행하면 `Index.html`에 그림이 들어가요.
+GitHub 웹으로 올릴 때는 5~10장씩 나눠 올려요 ([`art/README.md`](art/README.md)).
 그다음 Apps Script의 `Index.html`을 새 내용으로 바꾸고 새 버전으로 배포해요.
 
 ```bash
@@ -84,6 +85,7 @@ python3 tools/embed.py
 | `Index.html` | 화면 전부 (교실 패드, 담임 관리, 학생 화면, 교환권 인쇄, 그림, QR 라이브러리) |
 | `appsscript.json` | Apps Script 설정 (시간대 Asia/Seoul, 웹앱) |
 | `PLAN.md` | 기획서 |
+| `HANDOFF.md` | 다음 세션 인계문 |
 | `ART_PROMPTS.md` | ChatGPT 그림 프롬프트 |
 | `tools/embed.py` | QR 라이브러리와 그림을 `Index.html`에 넣는 도구 |
 | `vendor/` | qrcode-generator 1.4.4 원본 |
