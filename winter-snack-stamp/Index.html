@@ -128,10 +128,26 @@ td.num,th.num{text-align:right}
 .lock .page-title{justify-content:center;font-size:34px}
 /* ChatGPT 그림(Art.img)은 담긴 칸 너비에 맞춰요. 교환권·스티커는 아래 규칙이 덮어써요. */
 img.pic{display:block;width:100%;height:auto}
-.codebox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:20px;padding-top:18px;border-top:2px dashed var(--line)}
-.codebox b{font-family:var(--title);font-weight:400;font-size:20px}
-.codebox input{width:118px;font-size:22px;text-align:center;letter-spacing:4px}
-.codebox input::placeholder{font-size:15px;letter-spacing:0}
+/* 로고: ChatGPT 그림(art/logo.png)이 있으면 그 그림, 없으면 앱이 그린 포장마차 + 글자 */
+.logo{width:min(290px,70vw);margin:0 auto}
+.logo svg{display:block;width:100%;height:auto}
+.logo-t{font-family:var(--title);text-align:center;line-height:1.12;margin-top:2px}
+.logo-t small{display:block;font-size:25px;color:#5A2A1A}
+.logo-t b{font-weight:400;font-size:44px;color:var(--red);letter-spacing:2px;text-shadow:0 2px 0 #fff,0 3px 0 rgba(150,40,30,.25)}
+.lock .logo{width:min(360px,72vw)}
+.lock .logo-t small{font-size:30px}
+.lock .logo-t b{font-size:54px}
+/* 학생 로그인 (첫 화면, 공용 주소, QR) */
+.login{max-width:340px;margin:14px auto 0;display:flex;flex-direction:column;gap:10px;text-align:left}
+.login h2{font-family:var(--title);font-weight:400;font-size:24px;text-align:center}
+.login label{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:14px;color:var(--ink2)}
+.login input{width:100%;font-size:20px;padding:10px 14px}
+.login #stuCode{letter-spacing:6px}
+.login #stuCode::placeholder{letter-spacing:0;font-size:16px}
+.login .err{background:var(--red-soft);color:var(--red2);border-radius:12px;padding:8px 12px;font-weight:800;font-size:14px}
+.teachers{margin-top:20px;padding-top:14px;border-top:2px dashed var(--line);display:flex;flex-direction:column;gap:8px;align-items:center}
+.shareqr{width:150px;flex:none;background:#fff;border-radius:12px;border:1.5px solid var(--line);padding:6px}
+.shareqr svg{display:block;width:100%;height:auto}
 .gauge{display:flex;align-items:center;gap:12px;text-align:left}
 .gauge .pig{width:74px;flex:none}
 .padhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -141,6 +157,8 @@ img.pic{display:block;width:100%;height:auto}
 .save.retry{color:var(--red)}
 .readybar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#EAF3F8;border:2px solid #CFE3EC;border-radius:18px;padding:10px 14px;margin-bottom:12px}
 .readybar b{font-family:var(--title);font-weight:400;font-size:20px}
+.allbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#F3EEFF;border:2px solid #DCD0F5;border-radius:18px;padding:8px 14px;margin-bottom:12px}
+.allbar b{font-family:var(--title);font-weight:400;font-size:20px}
 .recov{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FFF1DE;border:2px solid #F3C98F;border-radius:18px;padding:8px 14px;margin-bottom:12px}
 .recov b{font-family:var(--title);font-weight:400;font-size:19px}
 .name.rc{border-color:#F3C98F}
@@ -369,7 +387,7 @@ const ART_IMAGES = {/*ART:BEGIN*/
 const Q = new URLSearchParams(location.search);
 const B = (function () {
   const b = (typeof BOOT === 'object' && BOOT) || {};
-  return { view: b.view || (Q.get('s') ? 'student' : (Q.get('v') || 'home')), code: b.code || Q.get('s') || '', url: b.url || '' };
+  return { view: b.view || (Q.get('s') ? 'student' : (Q.get('v') === 'stu' ? 'login' : (Q.get('v') || 'home'))), code: b.code || Q.get('s') || '', name: '', url: b.url || '' };
 })();
 const $ = (s, r) => (r || document).querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -385,7 +403,7 @@ const DEVICE = store.get('wss:dev') || (() => { const d = Math.random().toString
 
 function call(action, payload) {
   return new Promise((resolve, reject) => {
-    const req = { action, payload: payload || {}, token: SESSION_TOKEN, code: B.code, dev: DEVICE };
+    const req = { action, payload: payload || {}, token: SESSION_TOKEN, code: B.code, name: B.name, dev: DEVICE };
     const done = (res) => (res && res.ok ? resolve(res.data) : reject(res || { code: 'ERROR', msg: '응답이 없어요.' }));
     if (window.google && google.script && google.script.run) {
       google.script.run.withSuccessHandler(done).withFailureHandler(() => reject({ code: 'NET', msg: '연결이 불안정해요. 잠시 뒤 다시 시도해요.' })).api(req);
@@ -639,6 +657,27 @@ const Art = {
       '<path d="M22 44 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -8" fill="#E7BC80" stroke="#A9773D" stroke-width="2" stroke-linejoin="round"/>' +
       '<text x="70" y="96" text-anchor="middle" font-family="Jua,sans-serif" font-size="17" fill="#8A5A2B">포장마차</text></svg>', '간식 종이봉투');
   },
+  /** 우리 반 겨울 간식 포장마차 로고. art/logo.png가 있으면 그 그림(글자 포함), 없으면 앱이 그린 포장마차 + 글자. */
+  logo() {
+    return this.img('logo', () => {
+      let stripes = '';
+      for (let i = 0; i < 10; i++) stripes += '<path d="M' + (30 + i * 26) + ' 22 h26 v34 a13 13 0 0 1 -26 0 Z" fill="' + (i % 2 ? '#FFF3E6' : '#D9473B') + '" stroke="#B93A2F" stroke-width="1.6"/>';
+      const lantern = (x) => '<g transform="translate(' + x + ' 69)"><path d="M0 0 v8" stroke="#7A4A2B" stroke-width="2"/><rect x="-6" y="7" width="12" height="5" rx="2" fill="#E9A24A"/>' +
+        '<ellipse cx="0" cy="26" rx="13" ry="15" fill="#E5533F" stroke="#B93A2F" stroke-width="2"/><path d="M-12 21 h24 M-12 31 h24" stroke="#B93A2F" stroke-width="1.4" opacity=".55"/>' +
+        '<ellipse cx="-4" cy="20" rx="3" ry="5" fill="#fff" opacity=".45"/><rect x="-6" y="40" width="12" height="5" rx="2" fill="#E9A24A"/><path d="M0 45 v8" stroke="#E9A24A" stroke-width="2.4" stroke-linecap="round"/></g>';
+      const snow = [[14, 40], [304, 52], [10, 118], [310, 112], [160, 6], [24, 168], [298, 176]].map((p) => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.2" fill="#fff" stroke="#CFE3EC" stroke-width="1.2"/>').join('');
+      return '<svg viewBox="0 0 320 196" aria-hidden="true">' + snow +
+        '<rect x="44" y="40" width="10" height="112" rx="3" fill="#A86B3C"/><rect x="266" y="40" width="10" height="112" rx="3" fill="#A86B3C"/>' +
+        '<rect x="22" y="12" width="276" height="14" rx="7" fill="#B93A2F"/>' + stripes + lantern(66) + lantern(254) +
+        this.steam(126, 98, 22, 3) + this.steam(207, 98, 20, 3) +
+        '<g transform="translate(86 92) scale(.66)">' + this.fishBody('#EFAE4F', '#B8742A', '#B8742A') + '</g>' +
+        '<g transform="translate(176 92) scale(.62)">' + this.bunBody('#FFFBF2', '#CDB58E', '#EED9B6') + '</g>' +
+        '<rect x="30" y="138" width="260" height="12" rx="5" fill="#E2A86C" stroke="#8E5A2E" stroke-width="2"/>' +
+        '<rect x="40" y="150" width="240" height="38" rx="8" fill="#C98A55" stroke="#8E5A2E" stroke-width="2"/>' +
+        '<path d="M58 163 h204 M58 175 h204" stroke="#8E5A2E" stroke-width="1.5" opacity=".3"/></svg>' +
+        '<div class="logo-t"><small>우리 반 겨울 간식</small><b>포장마차</b></div>';
+    }, '우리 반 겨울 간식 포장마차');
+  },
   FILLINGS: {
     '슈크림': { kind: 'bung', fill: '#F7D35C', dots: '#FBE7A0' }, '팥': { kind: 'bung', fill: '#6E2B25', dots: '#8C3A30' },
     '피자': { kind: 'hop', fill: '#D9472B', dots: '#F6D365', dots2: '#6BAA4B' }, '단팥': { kind: 'hop', fill: '#6E2B25', dots: '#8C3A30' },
@@ -796,21 +835,51 @@ function render(html) { $('#app').innerHTML = html; }
 
 /* ════════════════════════ 첫 화면 ════════════════════════ */
 const Home = {
-  async init() {
-    let name = '우리 반';
-    try { name = (await call('hello')).className; } catch (e) {}
-    render('<div class="wrap" style="max-width:560px"><div class="card center" style="padding:28px 22px">' +
-      '<div class="page-title" style="justify-content:center;font-size:30px"><span class="em">🏮</span>' + esc(name) + ' 겨울 간식 포장마차</div>' +
-      '<p class="hint" style="margin:10px 0 22px">수업을 열심히 들으면 스탬프! 스탬프를 모아 붕어빵·호빵으로 바꿔요.</p>' +
-      '<div class="list"><a class="btn red big" href="' + esc(link('pad')) + '">🏫 교실 패드 (교과 선생님)</a>' +
-      '<a class="btn gold big" href="' + esc(link('admin')) + '">📒 담임 관리</a></div>' +
-      '<form class="codebox" method="get" target="_top" action="' + esc(link('')) + '"><b>🎫 학생</b>' +
-      '<input name="s" id="stuCode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required placeholder="코드 4자리" aria-label="내 코드 4자리">' +
-      '<button class="btn gold" type="submit">들어가기</button></form>' +
-      '<p class="hint" style="margin-top:8px">학생은 QR을 찍거나, 담임 선생님께 받은 <b>내 코드 4자리</b>를 넣어요.</p></div></div>');
+  /**
+   * 첫 화면 = 학생 로그인. 로고 아래에 이름·코드 4자리를 넣어요(처음 한 번, 담임 결정 11/5).
+   * mode: 'home'(첫 화면, 선생님 버튼도 보여요) · 'stu'(학생 공용 주소 ?v=stu) · 'qr'(QR 카드: 코드가 미리 들어가 있어요)
+   */
+  mode: 'home',
+  init(opt) {
+    opt = opt || {};
+    this.mode = opt.mode || 'home';
+    document.body.classList.remove('student');
+    const code = opt.code != null ? opt.code : (store.get('wss:me') || '');
+    const intro = this.mode === 'qr' ? 'QR을 찍었어요. <b>내 이름</b>을 넣고 들어가요.' : '처음 한 번만 <b>이름</b>과 <b>내 코드 4자리</b>를 넣어요.';
+    render('<div class="wrap" style="max-width:520px"><div class="card center" style="padding:22px 20px 24px">' +
+      '<div class="logo">' + Art.logo() + '</div><div id="homeClass"></div>' +
+      '<form class="login" id="stuLogin" novalidate><h2>🎫 학생 들어가기</h2><p class="hint center">' + intro + '</p>' +
+      '<label>이름<input id="stuName" maxlength="20" autocomplete="off" placeholder="내 이름"></label>' +
+      '<label>내 코드 4자리<input id="stuCode" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="QR 카드에 있어요" value="' + esc(code) + '"></label>' +
+      '<p class="err" id="stuErr"' + (opt.msg ? '' : ' hidden') + '>' + esc(opt.msg || '') + '</p>' +
+      '<button class="btn gold big block" type="submit" id="stuGo">들어가기</button>' +
+      '<p class="hint center">로그아웃을 누르기 전까지 이 기기에서는 바로 내 화면이 열려요.</p></form>' +
+      (this.mode === 'home' ? '<div class="teachers"><div class="small muted" style="font-weight:800">선생님</div><div class="row" style="justify-content:center">' +
+        '<a class="btn red" href="' + esc(link('pad')) + '">🏫 교실 패드 (교과 선생님)</a><a class="btn white" href="' + esc(link('admin')) + '">📒 담임 관리</a></div></div>' : '') +
+      '</div></div>');
+    $('#stuLogin').onsubmit = (e) => { e.preventDefault(); this.login(); };
+    call('hello').then((r) => { const el = $('#homeClass'); if (el && r.className && r.className !== '우리 반') el.innerHTML = '<span class="pill" style="margin-top:6px">' + esc(r.className) + '</span>'; }, () => {});
+  },
+  err(msg) {
+    const el = $('#stuErr'); el.textContent = msg; el.hidden = false;
+    const b = $('#stuGo'); b.disabled = false; b.textContent = '들어가기';
+  },
+  async login() {
+    const name = $('#stuName').value.replace(/\s+/g, ' ').trim(), code = $('#stuCode').value.replace(/\s+/g, '');
+    if (!name) return this.err('이름을 넣어 주세요.');
+    if (!/^\d{4}$/.test(code)) return this.err('코드는 숫자 4자리예요. QR 카드에 적혀 있어요.');
+    const b = $('#stuGo'); b.disabled = true; b.textContent = '확인 중…'; $('#stuErr').hidden = true;
+    B.code = code; B.name = name;
+    try {
+      const v = await call('studentState');
+      store.set('wss:me', code); store.set('wss:meName', name); // 로그아웃을 누를 때까지 이 기기에서 바로 내 화면
+      Stu.init(v);
+    } catch (e) {
+      B.code = ''; B.name = '';
+      this.err(e.msg || '잠시 뒤 다시 해 보세요.');
+    }
   },
 };
-
 /* ════════════════════════ 교실 패드 ════════════════════════ */
 const Pad = {
   token: store.get('wss:pad', true) || '',
@@ -892,11 +961,12 @@ const Pad = {
   rLock() {
     const p = this.pub || {};
     const mvp = (p.todayMvp || []).map((m) => '<span class="pill">👑 ' + esc(m.period ? m.period + '교시 ' : '') + esc(m.subject) + ' ' + esc(m.name) + '</span>').join(' ');
-    return '<div class="lock"><div class="card" style="padding:26px 22px">' +
-      '<div class="page-title"><span class="em">🏮</span>' + esc(p.className || '우리 반') + ' 겨울 간식 포장마차</div>' +
-      '<p class="hint" style="margin:6px 0 18px">교과 선생님 PIN으로 열어요</p>' +
+    // 잠금 화면(교과 선생님 첫 화면): 로고만 크게. 저금통은 보이지 않아요(담임 결정 11/5).
+    return '<div class="lock"><div class="card" style="padding:22px 22px 26px">' +
+      '<div class="logo">' + Art.logo() + '</div>' +
+      (p.className && p.className !== '우리 반' ? '<span class="pill" style="margin-top:6px">' + esc(p.className) + '</span>' : '') +
+      '<p class="hint" style="margin:10px 0 16px">교과 선생님 PIN으로 열어요</p>' +
       (this.lockMsg ? '<p class="pill red" style="margin-bottom:12px">' + esc(this.lockMsg) + '</p>' : '') +
-      '<div class="card" style="text-align:left;margin-bottom:16px">' + this.gauge(p.piggy) + '</div>' +
       (mvp ? '<div style="margin-bottom:16px"><div class="small muted" style="margin-bottom:4px">오늘의 MVP</div><div class="row" style="justify-content:center">' + mvp + '</div></div>' : '') +
       '<button class="btn red big" data-act="padOpen">🔓 수업 시작</button></div></div>';
   },
@@ -955,6 +1025,8 @@ const Pad = {
       '<button class="btn navy sm" data-act="padEnd">수업 마치기</button></div>' +
       '<div class="readybar"><b>🔔 수업 준비</b><span class="grow small">🪑 착석 · 🤫 조용히 · 📖 교과서·프린트 — 반 전체가 되면</span>' +
       (L.ready ? '<span class="pill mint">✔ 오늘 수업 준비 성공</span>' : '<button class="btn mint" data-act="padReady">전원 +1</button>') + '</div>' +
+      '<div class="allbar"><b>👥 반 전체</b><span class="grow small">' + v.students.length + '명 모두에게 한 번에 주거나 빼요</span>' +
+      '<button class="btn mint sm" data-act="padAllExtra">＋ 전원 주기</button><button class="btn red sm" data-act="padAllMinus">－ 전원 빼기</button></div>' +
       '<div class="toolbar"><button class="btn white sm" data-act="padAll">전체 선택</button><button class="btn white sm" data-act="padNone">선택 해제</button>' +
       '<span class="grow" style="font-weight:800">' + (n ? n + '명 선택됨' : '이름을 눌러 골라요') + '</span>' +
       '<button class="btn white sm" data-act="padUndo"' + (this.undo.length && !this.queue.length ? '' : ' disabled') + '>↶ 되돌리기</button></div>' +
@@ -1033,6 +1105,27 @@ const Pad = {
     if (this.queue.length) this.pump();
   },
   nameOf(no) { const s = this.view.students.find((x) => x.no === Number(no)); return s ? s.name : no; },
+  allNos() { return this.view.students.map((s) => s.no); },
+  /** ＋ 더 주기 창. all이면 반 전체(전원 주기). 고른 학생 목록은 창을 닫을 때까지 modalList에 둬요. */
+  extraBox(list, all) {
+    if (!list.length) return;
+    this.modalList = list; this.modalAll = !!all;
+    const reasons = all ? ['수업 태도', '모둠 활동', '과제', '기타'] : ['발표', '모둠 활동', '친구 도움', '과제', '기타'];
+    modal('<h2>' + (all ? '＋ 전원 주기' : '＋ 더 주기') + ' <small class="muted" style="font-size:15px">' + (all ? '반 전체 ' : '') + list.length + '명</small></h2>' +
+      '<div class="small muted">' + (all ? '모두에게 ' : '') + '몇 개 줄까요?</div><div class="row" style="margin:6px 0 12px">' + [1, 2, 3, 5].map((k) => '<button class="chip' + (k === 1 ? ' on' : '') + '" data-act="pickChip" data-group="amt" data-v="' + k + '">+' + k + '</button>').join('') + '</div>' +
+      '<div class="small muted">이유</div><div class="row" style="margin:6px 0 6px">' + reasons.map((k, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="pickChip" data-group="rsn" data-v="' + k + '">' + k + '</button>').join('') + '</div>' +
+      '<div class="actions"><button class="btn white" data-act="closeModal">취소</button><button class="btn mint" data-act="padExtraOk">' + (all ? '전원 주기' : '주기') + '</button></div>');
+  },
+  /** － 빼기 창. 반 전체를 빼면 이유는 "전체"로 남고 되찾기 찬스가 없어요(정함). */
+  minusBox(list, all) {
+    if (!list.length) return;
+    this.modalList = list; this.modalAll = !!all;
+    modal('<h2>' + (all ? '－ 전원 빼기' : '－ 빼기') + ' <small class="muted" style="font-size:15px">' + (all ? '반 전체 ' : '') + list.length + '명</small></h2>' +
+      '<div class="small muted">' + (all ? '모두에게서 ' : '') + '몇 개 뺄까요?</div><div class="row" style="margin:6px 0 12px">' + [1, 2, 3].map((k) => '<button class="chip' + (k === 1 ? ' on' : '') + '" data-act="pickChip" data-group="amt" data-v="' + k + '">−' + k + '</button>').join('') + '</div>' +
+      (all ? '<p class="hint">반 전체가 함께 빠진 것은 되찾기 찬스가 없어요.</p>' :
+        '<div class="small muted">이유</div><div class="row" style="margin:6px 0">' + ['잠', '방해', '기타'].map((k, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="pickChip" data-group="rsn" data-v="' + k + '">' + k + '</button>').join('') + '</div>') +
+      '<div class="actions"><button class="btn white" data-act="closeModal">취소</button><button class="btn red" data-act="padMinusOk">다음</button></div>');
+  },
 };
 Object.assign(ACTS, {
   padOpen() { Pad.pin = ''; Pad.lockMsg = ''; Pad.phase = Pad.token ? 'setup' : 'pin'; if (Pad.token && !Pad.view) { Pad.phase = 'pin'; } Pad.render(); },
@@ -1080,33 +1173,25 @@ Object.assign(ACTS, {
     Sound.play('ding'); fx('snow', '🔔 땡! 수업 준비 성공<br>모두 +1', 3000);
     Pad.send('award', { tool: 'ready', students: [] }, '🔔 수업 준비');
   },
-  padExtra() {
-    const n = Pad.sel.size;
-    modal('<h2>＋ 더 주기 <small class="muted" style="font-size:15px">' + n + '명</small></h2>' +
-      '<div class="small muted">몇 개 줄까요?</div><div class="row" style="margin:6px 0 12px">' + [1, 2, 3, 5].map((k) => '<button class="chip' + (k === 1 ? ' on' : '') + '" data-act="pickChip" data-group="amt" data-v="' + k + '">+' + k + '</button>').join('') + '</div>' +
-      '<div class="small muted">이유</div><div class="row" style="margin:6px 0 6px">' + ['발표', '모둠 활동', '친구 도움', '과제', '기타'].map((k, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="pickChip" data-group="rsn" data-v="' + k + '">' + k + '</button>').join('') + '</div>' +
-      '<div class="actions"><button class="btn white" data-act="closeModal">취소</button><button class="btn mint" data-act="padExtraOk">주기</button></div>');
-  },
+  padExtra() { Pad.extraBox(Array.from(Pad.sel), false); },
+  padAllExtra() { Pad.extraBox(Pad.allNos(), true); },
   padExtraOk() {
     const amt = Number($('.modal [data-group="amt"].on').dataset.v), rsn = $('.modal [data-group="rsn"].on').dataset.v;
+    const list = Pad.modalList || [], all = Pad.modalAll;
     closeModal(); Sound.play('stamp');
-    Pad.send('award', { tool: 'extra', students: Array.from(Pad.sel), amount: amt, reason: rsn }, '＋ 더 주기');
+    if (all) fx('yay', '🎉 반 전체 +' + amt + '<br>' + esc(rsn), 2600);
+    Pad.send('award', { tool: 'extra', students: list, amount: amt, reason: rsn }, all ? '＋ 전원 주기' : '＋ 더 주기');
   },
-  padMinus() {
-    const n = Pad.sel.size;
-    modal('<h2>－ 빼기 <small class="muted" style="font-size:15px">' + n + '명</small></h2>' +
-      '<div class="small muted">몇 개 뺄까요?</div><div class="row" style="margin:6px 0 12px">' + [1, 2, 3].map((k) => '<button class="chip' + (k === 1 ? ' on' : '') + '" data-act="pickChip" data-group="amt" data-v="' + k + '">−' + k + '</button>').join('') + '</div>' +
-      '<div class="small muted">이유</div><div class="row" style="margin:6px 0">' + ['잠', '방해', '기타'].map((k, i) => '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="pickChip" data-group="rsn" data-v="' + k + '">' + k + '</button>').join('') + '</div>' +
-      '<div class="actions"><button class="btn white" data-act="closeModal">취소</button><button class="btn red" data-act="padMinusOk">다음</button></div>');
-  },
+  padMinus() { Pad.minusBox(Array.from(Pad.sel), false); },
+  padAllMinus() { Pad.minusBox(Pad.allNos(), true); },
   async padMinusOk() {
-    const amt = Number($('.modal [data-group="amt"].on').dataset.v), rsn = $('.modal [data-group="rsn"].on').dataset.v;
-    const list = Array.from(Pad.sel), bulk = list.length === Pad.view.students.length;
+    const amt = Number($('.modal [data-group="amt"].on').dataset.v), r = $('.modal [data-group="rsn"].on');
+    const list = Pad.modalList || [], bulk = list.length === Pad.view.students.length, rsn = bulk || !r ? '전체' : r.dataset.v;
     closeModal();
-    const ok = await confirmBox('정말 뺄까요?', '<p style="font-size:20px"><b>' + list.length + '명</b>에게 <b class="minus">−' + amt + '</b>, 맞나요?</p><p class="hint">이유: ' + esc(bulk ? '전체' : rsn) + (bulk ? ' (전체 빼기는 되찾기 찬스가 없어요)' : '') + '</p>', '−' + amt + ' 빼기', 'red');
+    const ok = await confirmBox(bulk ? '정말 반 전체에서 뺄까요?' : '정말 뺄까요?', '<p style="font-size:20px">' + (bulk ? '반 전체 ' : '') + '<b>' + list.length + '명</b>에게 <b class="minus">−' + amt + '</b>, 맞나요?</p><p class="hint">이유: ' + esc(rsn) + (bulk ? ' (전체 빼기는 되찾기 찬스가 없어요)' : '') + '</p>', '−' + amt + (bulk ? ' 전원 빼기' : ' 빼기'), 'red');
     if (!ok) return;
     Sound.play('minus');
-    Pad.send('penalty', { students: list, amount: amt, reason: rsn, bulk }, '－ 빼기');
+    Pad.send('penalty', { students: list, amount: amt, reason: rsn, bulk }, bulk ? '－ 전원 빼기' : '－ 빼기');
   },
   padUndo() {
     const last = Pad.undo.pop();
@@ -1138,24 +1223,40 @@ Object.assign(ACTS, {
 
 /* ════════════════════════ 학생 화면 ════════════════════════ */
 const Stu = {
-  v: null, tab: 'bung', busy: false, flash: null,
-  async init() {
+  v: null, tab: 'bung', busy: false, flash: null, on: false,
+  /** v: 로그인 화면에서 막 받은 내 화면 (없으면 서버에 물어요) */
+  async init(v) {
     document.body.classList.add('student');
-    await this.load();
+    this.on = true;
+    if (v) this.show(v); else await this.load();
+    if (this.started) return;
+    this.started = true;
     document.addEventListener('visibilitychange', () => { if (!document.hidden) this.load(true); });
     setInterval(() => { if (!document.hidden && !$('.modal')) this.load(true); }, 60000);
   },
   async load(quiet) {
+    if (!this.on) return;
     if (quiet && this.stampPending()) return; // 찍기를 저장하는 중에는 화면을 되돌리지 않아요
+    let v;
     try {
-      this.set(await call('studentState'));
-      store.set('wss:me', B.code); // 로그아웃을 누를 때까지 첫 화면을 열어도 바로 내 화면으로 와요
+      v = await call('studentState');
     } catch (e) {
-      if (e.code === 'CODE' && store.get('wss:me') === B.code) store.del('wss:me');
-      if (!quiet) render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🏮 겨울 간식 포장마차</div><p style="margin-top:12px">' + esc(e.msg || '잠시 뒤 다시 열어 주세요.') + '</p>' +
-        (e.code === 'CODE' ? '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">코드 다시 넣기</a>' : '') + '</div></div>');
+      if (e.code === 'CODE' || e.code === 'LOGIN') {
+        // 이름·코드가 바뀌었거나, 예전에 코드만으로 들어온 기기예요. 이름과 코드를 다시 넣어요.
+        this.on = false;
+        const code = e.code === 'LOGIN' ? B.code : '';
+        store.del('wss:meName'); if (e.code === 'CODE') store.del('wss:me');
+        B.name = '';
+        Home.init({ mode: 'stu', code, msg: e.code === 'CODE' ? e.msg : '' });
+        return;
+      }
+      if (!quiet) render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🏮 겨울 간식 포장마차</div><p style="margin-top:12px">' + esc(e.msg || '잠시 뒤 다시 열어 주세요.') + '</p></div></div>');
       return;
     }
+    this.show(v);
+  },
+  show(v) {
+    this.set(v);
     this.render();
     if (!this.v.rulesRead) this.showRules(true);
     this.celebrate();
@@ -1416,8 +1517,9 @@ const Stu = {
 Object.assign(ACTS, {
   stuRules() { Stu.showRules(false); },
   async stuLogout() {
-    if (!(await confirmBox('로그아웃할까요?', '<p>다음에 들어올 때 QR을 찍거나 내 코드 4자리를 다시 넣어요.</p>', '로그아웃'))) return;
-    store.del('wss:me');
+    if (!(await confirmBox('로그아웃할까요?', '<p>다음에 들어올 때 이름과 내 코드 4자리를 다시 넣어요.</p>', '로그아웃'))) return;
+    store.del('wss:me'); store.del('wss:meName');
+    Stu.on = false; B.code = ''; B.name = '';
     render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🚪 로그아웃했어요</div>' +
       '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">첫 화면으로</a></div></div>');
   },
@@ -1477,6 +1579,19 @@ const Adm = {
    */
   webUrl() { return /\/exec$/.test(B.url || '') ? B.url : ((this.v && this.v.url) || ''); },
   stuLink(s) { const u = this.webUrl(); return u ? u + '?s=' + s.code : (s.link || ''); },
+  /** 학생 공용 로그인 주소(?v=stu): 반 전체가 같은 주소로 들어와 이름·코드를 넣어요. 단톡방·칠판 QR용. */
+  shareLink() { const u = this.webUrl(); return u ? u + '?v=stu' : ''; },
+  shareCard() {
+    const u = this.shareLink();
+    if (!u) return '<div class="card"><h3>🎫 학생 공용 로그인 주소</h3><div class="empty">웹앱을 배포한 뒤에 생겨요</div></div>';
+    let svg = '';
+    try { const qr = qrcode(0, 'M'); qr.addData(u); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
+    return '<div class="card"><h3>🎫 학생 공용 로그인 주소 <small>반 전체가 같은 주소로 들어와 이름·코드 4자리를 넣어요</small></h3>' +
+      '<div class="row" style="align-items:flex-start;gap:14px"><div class="shareqr">' + svg + '</div><div class="grow">' +
+      '<input readonly value="' + esc(u) + '" style="width:100%" onclick="this.select()">' +
+      '<div class="row" style="margin-top:8px"><button class="btn gold sm" data-act="admCopy" data-link="' + esc(u) + '">주소 복사</button><a class="btn white sm" href="' + esc(u) + '" target="_blank">열기</a></div>' +
+      '<p class="hint" style="margin-top:8px">단톡방에 올리거나, 이 QR을 칠판 화면에 띄워요. 개인 QR 카드도 그대로 쓸 수 있어요.</p></div></div></div>';
+  },
   /** 학생 QR 카드 한 장: QR, 이름, 내 코드 4자리 */
   qrCard(s, className) {
     let svg = '';
@@ -1571,6 +1686,7 @@ const Adm = {
     return '<div class="card"><h3>👩‍🎓 명단 <small>엑셀에서 번호·이름 두 칸을 복사해 붙여 넣거나, 한 줄에 한 명씩 "번호 이름"으로 써요</small></h3>' +
       '<textarea id="rosterText" rows="10" placeholder="1&#9;김하늘&#10;2&#9;이바다">' + esc(text) + '</textarea>' +
       '<div class="row" style="margin-top:8px"><span class="hint grow">개인 코드는 같은 학생이면 그대로 유지돼요. 명단은 시트에만 저장되고 저장소에는 올라가지 않아요.</span><button class="btn red" data-act="admRoster">명단 저장</button></div></div>' +
+      Adm.shareCard() +
       '<div class="card"><h3>🔗 학생 개인 링크·QR <small>학생은 자기 링크로 자기 것만 봐요</small></h3><div class="row" style="margin-bottom:10px"><button class="btn gold sm" data-act="admQrPrint"' + (Adm.webUrl() ? '' : ' disabled') + '>🖨 QR 카드 인쇄 (A4 한 장에 16명)</button><span class="hint">코드를 새로 만들면 예전 링크는 더 이상 열리지 않아요.</span></div>' +
       '<div class="scroll"><table><thead><tr><th>번호</th><th>이름</th><th>코드</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
   },
@@ -1696,8 +1812,20 @@ document.addEventListener('change', (e) => {
 
 /* ════════════════════════ 시작 ════════════════════════ */
 // 이 기기에서 학생이 들어온 적이 있으면(로그아웃 전) 첫 화면 대신 바로 그 학생 화면을 열어요.
-if (B.view === 'home' && store.get('wss:me')) { B.view = 'student'; B.code = store.get('wss:me'); }
-({ pad: Pad, admin: Adm, student: Stu, home: Home }[B.view] || Home).init();
+/*
+ * 학생 로그인: 이 기기에 이름·코드가 남아 있으면(로그아웃 전) 첫 화면·공용 주소·QR 어디로 와도 바로 내 화면.
+ * 없으면 로그인 화면(로고 + 이름 + 코드). QR로 왔으면 코드는 미리 들어가 있어요.
+ */
+(function boot() {
+  const code = store.get('wss:me') || '', name = store.get('wss:meName') || '';
+  if ((B.view === 'home' || B.view === 'login') && code && name) { B.view = 'student'; B.code = code; }
+  if (B.view === 'student') {
+    if (name && code === B.code) { B.name = name; Stu.init(); } else Home.init({ mode: 'qr', code: B.code });
+    return;
+  }
+  if (B.view === 'login') { Home.init({ mode: 'stu' }); return; }
+  ({ pad: Pad, admin: Adm, home: Home }[B.view] || Home).init();
+})();
 </script>
 <script>
 /* QR_LIB:BEGIN */

@@ -15,9 +15,11 @@ function setupClass(opts = {}) {
   let view = app.ok('saveRoster', { rows: ROSTER }, { token: admin });
   if (opts.settings) view = app.ok('saveSettings', { settings: Object.assign({}, view.settings, opts.settings) }, { token: admin });
   const codes = {};
-  view.students.forEach((s) => { codes[s.no] = s.code; });
+  const names = {};
+  view.students.forEach((s) => { codes[s.no] = s.code; names[s.no] = s.name; });
+  const who = (no) => ({ code: codes[no], name: names[no] }); // 학생은 이름 + 코드로 들어와요
   const ctx = {
-    app, admin, teacher, codes,
+    app, admin, teacher, codes, names, who,
     start(subject = '수학', period = 3) {
       const v = app.ok('startLesson', { subject, period, actionId: aid() }, { token: teacher });
       return v.lesson.id;
@@ -29,9 +31,9 @@ function setupClass(opts = {}) {
       return app.ok('penalty', Object.assign({ lesson, students, amount, reason: '방해', actionId: aid() }, extra), { token: teacher });
     },
     end(lesson) { return app.ok('endLesson', { lesson, actionId: aid() }, { token: teacher }); },
-    me(no) { return app.ok('studentState', {}, { code: codes[no] }); },
-    student(no, action, payload = {}) { return app.ok(action, Object.assign({ actionId: aid() }, payload), { code: codes[no] }); },
-    studentCall(no, action, payload = {}) { return app.call(action, Object.assign({ actionId: aid() }, payload), { code: codes[no] }); },
+    me(no) { return app.ok('studentState', {}, who(no)); },
+    student(no, action, payload = {}) { return app.ok(action, Object.assign({ actionId: aid() }, payload), who(no)); },
+    studentCall(no, action, payload = {}) { return app.call(action, Object.assign({ actionId: aid() }, payload), who(no)); },
     adminView() { return app.ok('adminState', {}, { token: admin }); },
     stock(items) { return app.ok('setStock', { items }, { token: admin }); },
   };
@@ -44,7 +46,7 @@ test('명단을 저장하면 개인 코드가 생기고, 학생은 자기 코드
   Object.values(c.codes).forEach((code) => assert.match(code, /^[1-9]\d{3}$/, '숫자 4자리 (앞자리 0 없음)'));
   assert.equal(new Set(Object.values(c.codes)).size, 5, '코드가 겹치지 않아요');
   assert.equal(c.me(1).me.name, '김하늘');
-  const bad = c.app.call('studentState', {}, { code: 'nope' });
+  const bad = c.app.call('studentState', {}, { code: 'nope', name: '김하늘' });
   assert.equal(bad.ok, false);
   assert.equal(bad.code, 'CODE');
   // 다시 저장해도 같은 학생의 코드는 그대로예요.
@@ -356,16 +358,16 @@ test('시트 메뉴 "웹앱 주소 보기"는 웹앱이 열릴 때 본 /exec 주
 test('틀린 학생 코드를 한 기기에서 5번 넣으면 그 기기만 10분 동안 막혀요', () => {
   const c = setupClass();
   const wrong = ['0000', '0001', '0002', '0003', '0004']; // 앞자리 0은 학생 코드로 안 나와요
-  wrong.forEach((code) => assert.equal(c.app.call('studentState', {}, { code, dev: 'phoneA' }).code, 'CODE'));
-  assert.equal(c.app.call('studentState', {}, { code: c.codes[1], dev: 'phoneA' }).code, 'LOCKED', '막힌 기기는 맞는 코드도 잠시 못 써요');
-  assert.equal(c.app.call('studentState', {}, { code: c.codes[1], dev: 'phoneB' }).ok, true, '다른 학생 기기는 그대로 돼요');
+  wrong.forEach((code) => assert.equal(c.app.call('studentState', {}, { code, name: '김하늘', dev: 'phoneA' }).code, 'CODE'));
+  assert.equal(c.app.call('studentState', {}, Object.assign(c.who(1), { dev: 'phoneA' })).code, 'LOCKED', '막힌 기기는 맞는 코드도 잠시 못 써요');
+  assert.equal(c.app.call('studentState', {}, Object.assign(c.who(1), { dev: 'phoneB' })).ok, true, '다른 학생 기기는 그대로 돼요');
 });
 
 test('예전 영어 섞인 코드는 명단을 다시 저장하면 숫자 4자리로 바뀌어요', () => {
   const c = setupClass();
   const sh = c.app.ss.getSheetByName('학생');
   sh.grid[1][2] = 'abcd2345'; // 1번 학생: 예전 모양 코드
-  assert.equal(c.app.call('studentState', {}, { code: 'abcd2345' }).ok, true, '바꾸기 전에는 예전 코드도 열려요');
+  assert.equal(c.app.call('studentState', {}, { code: 'abcd2345', name: '김하늘' }).ok, true, '바꾸기 전에는 예전 코드도 열려요');
   const v = c.app.ok('saveRoster', { rows: ROSTER }, { token: c.admin });
   const codes = v.students.map((s) => s.code);
   codes.forEach((code) => assert.match(code, /^[1-9]\d{3}$/));
@@ -427,4 +429,57 @@ test('웹앱 밖에서 구글이 열리지 않는 /exec 주소(편집용 번호)
   const v = app.ok('saveRoster', { rows: [{ no: 1, name: '김하늘' }] }, { token: admin });
   assert.equal(v.url, good);
   assert.ok(v.students[0].link.startsWith(good + '?s='), '학생 QR 링크도 바른 주소로');
+});
+
+test('학생은 처음 들어올 때 이름과 코드가 둘 다 맞아야 해요 (띄어쓰기는 상관없어요)', () => {
+  const c = setupClass();
+  assert.equal(c.app.call('studentState', {}, { code: c.codes[1], name: '김 하늘 ' }).ok, true, '띄어쓰기가 달라도 같은 이름');
+  const other = c.app.call('studentState', {}, { code: c.codes[1], name: '이바다', dev: 'phoneC' });
+  assert.equal(other.code, 'CODE', '다른 친구 이름으로는 못 들어와요');
+  assert.match(other.msg, /이름이나 코드/, '이름과 코드 중 무엇이 틀렸는지는 알려 주지 않아요');
+  // 이름 없이(예전에 코드만으로 들어온 기기) 부르면 코드가 맞든 틀리든 똑같이 LOGIN이고, 틀린 횟수에도 안 들어가요.
+  for (let i = 0; i < 8; i++) {
+    assert.equal(c.app.call('studentState', {}, { code: c.codes[2], dev: 'phoneD' }).code, 'LOGIN');
+    assert.equal(c.app.call('studentState', {}, { code: '9999', dev: 'phoneD' }).code, 'LOGIN');
+  }
+  assert.equal(c.app.call('studentState', {}, Object.assign(c.who(2), { dev: 'phoneD' })).ok, true);
+  // 틀린 이름도 틀린 횟수에 들어가요: 5번이면 그 기기는 10분 동안 막혀요.
+  for (let i = 0; i < 5; i++) assert.equal(c.app.call('studentState', {}, { code: c.codes[3], name: '아무개' + i, dev: 'phoneE' }).code, 'CODE');
+  assert.equal(c.app.call('studentState', {}, Object.assign(c.who(3), { dev: 'phoneE' })).code, 'LOCKED');
+  // 학생 동작도 모두 이름이 있어야 해요.
+  assert.equal(c.app.call('donate', { n: 1, actionId: aid() }, { code: c.codes[1] }).code, 'LOGIN');
+});
+
+test('교실 패드에서 반 전체에게 주고(전원 주기) 반 전체에서 뺄 수 있어요(전원 빼기, 되찾기 없음)', () => {
+  const c = setupClass();
+  const all = [1, 2, 3, 4, 5];
+  const L = c.start();
+  c.award(L, 'extra', all, { amount: 3, reason: '수업 태도' });
+  all.forEach((no) => assert.equal(c.me(no).unstamped, 3));
+  c.penalty(L, all, 2, { bulk: true, reason: '전체' });
+  all.forEach((no) => {
+    const v = c.me(no);
+    assert.equal(v.unstamped, 1);
+    assert.equal(v.recover.ready + v.recover.waiting, 0, '반 전체 빼기는 되찾기 찬스가 없어요');
+  });
+  const log = c.app.log().filter((r) => r.type === '빼기');
+  assert.equal(log.length, 5);
+  assert.ok(log.every((r) => r.detail.reason === '전체' && r.detail.bulk));
+  const sum = c.end(L).summary;
+  assert.equal(sum.extra, 15);
+  assert.equal(sum.minusStudents, 5);
+});
+
+test('교실 패드 잠금 화면에는 저금통이 없어요. 학생 공용 주소(?v=stu)는 로그인 화면으로 열려요', () => {
+  const c = setupClass();
+  const pub = c.app.ok('padPublic', {});
+  assert.equal(pub.piggy, undefined);
+  assert.ok('className' in pub && 'todayMvp' in pub);
+  const boot = (parameter) => {
+    const html = c.app.sandbox.doGet({ parameter }).getContent();
+    return JSON.parse(/const BOOT = (\{.*?\});<\/script>/.exec(html)[1]).view;
+  };
+  assert.equal(boot({ v: 'stu' }), 'login');
+  assert.equal(boot({ v: 'pad' }), 'pad');
+  assert.equal(boot({ v: 'nope' }), 'home');
 });

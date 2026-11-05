@@ -58,7 +58,8 @@ function defaultSettings_() {
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
-  const view = p.s ? 'student' : (p.v === 'admin' ? 'admin' : (p.v === 'pad' ? 'pad' : 'home'));
+  // ?s=코드 학생 QR · ?v=stu 학생 공용 로그인 주소 · ?v=pad 교실 패드 · ?v=admin 담임 관리
+  const view = p.s ? 'student' : (p.v === 'admin' ? 'admin' : (p.v === 'pad' ? 'pad' : (p.v === 'stu' ? 'login' : 'home')));
   const url = liveUrl_(); // 웹앱이 열릴 때는 구글이 바른 주소를 알려 줘요
   rememberUrl_(url);
   const boot = { view: view, code: String(p.s || ''), url: url };
@@ -118,9 +119,9 @@ const HANDLERS = {
 
   /* 교실 패드 (교과 선생님) */
   padPublic: function () {
-    // 잠금 화면에 보이는 것만 (학급 이름, 저금통, 오늘의 MVP)
+    // 잠금 화면에 보이는 것만 (학급 이름, 오늘의 MVP). 저금통은 잠금 화면에 안 보여요(담임 결정 11/5).
     const v = padView_(load_());
-    return { className: v.className, piggy: v.piggy, todayMvp: v.todayMvp };
+    return { className: v.className, todayMvp: v.todayMvp };
   },
   padLogin: function (req, p) { return { token: login_('teacher', p.pin) }; },
   logout: function (req) { logout_(req.token); return true; },
@@ -1126,21 +1127,31 @@ function logout_(token) {
 }
 
 /**
- * 학생 코드(숫자 4자리)로 학생을 찾아요. 남의 코드를 이것저것 넣어 맞히지 못하게,
- * 한 기기(dev)에서 틀린 코드를 CODE_TRIES번 넣으면 10분 동안 막아요.
+ * 학생을 이름 + 코드(숫자 4자리)로 찾아요. 둘 다 맞아야 들어와요(담임 결정 11/5).
+ * 남의 코드를 이것저것 넣어 맞히지 못하게, 한 기기(dev)에서 틀리게 CODE_TRIES번 넣으면 10분 동안 막아요.
+ * 이름이 비어 있으면(예전에 코드만으로 들어온 기기) 코드를 확인하지 않고 LOGIN만 알려 줘요. 틀린 횟수에도 안 넣어요.
  */
 function me_(db, req) {
   const code = String((req && req.code) || '').trim();
+  const name = normName_(req && req.name);
   const cache = CacheService.getScriptCache();
   const key = 'badcode:' + String((req && req.dev) || '-').slice(0, 40);
   const fails = Number(cache.get(key) || 0);
-  if (fails >= CODE_TRIES) throw err_('LOCKED', '틀린 코드를 여러 번 넣어서 10분 동안 막혔어요. 담임 선생님께 받은 내 코드를 확인해 주세요.');
-  const me = db.students.filter(function (s) { return s.code === code; })[0];
+  if (fails >= CODE_TRIES) throw err_('LOCKED', '여러 번 틀려서 10분 동안 막혔어요. 담임 선생님께 받은 내 코드를 확인해 주세요.');
+  if (!name) throw err_('LOGIN', '처음 한 번은 이름과 코드를 넣어 주세요.');
+  const me = db.students.filter(function (s) { return s.code === code && normName_(s.name) === name; })[0];
   if (!me) {
     cache.put(key, String(fails + 1), 600);
-    throw err_('CODE', '코드가 맞지 않아요. 담임 선생님께 받은 내 코드(숫자 4자리)나 QR로 들어와 주세요.');
+    throw err_('CODE', '이름이나 코드가 맞지 않아요. 내 이름과 담임 선생님께 받은 코드 4자리를 확인해 주세요.');
   }
   return me;
+}
+
+/** 이름 비교용: 띄어쓰기는 빼고, 영어는 소문자로 봐요. */
+function normName_(v) {
+  let s = String(v == null ? '' : v);
+  try { s = s.normalize('NFC'); } catch (e) {}
+  return s.replace(/\s+/g, '').toLowerCase().slice(0, 40);
 }
 
 function withLock_(fn) {
@@ -1181,13 +1192,13 @@ function showUrls() {
   };
   const ok = /\/exec$/.test(url);
   const body = ok
-    ? row('🏫 교실 패드 (교과 선생님)', url + '?v=pad') + row('📒 담임 관리', url + '?v=admin') + row('🏮 첫 화면', url) +
+    ? row('🏫 교실 패드 (교과 선생님)', url + '?v=pad') + row('📒 담임 관리', url + '?v=admin') + row('🎫 학생 공용 로그인 (반 전체가 같은 주소)', url + '?v=stu') + row('🏮 첫 화면', url) +
       '<p class="hint">주소 칸을 누르면 전체가 골라져요. Ctrl+C로 복사해요.<br>학생 개인 링크·QR은 담임 관리 → 명단·QR에 있어요.</p>'
     : '<p>아직 웹앱 주소를 몰라요.</p><p class="hint">배포한 웹앱 주소(…/exec)를 브라우저에서 한 번 열고 나서 다시 눌러 주세요.<br>' +
       '배포 전이라면 Apps Script 편집기에서 <b>배포 → 새 배포 → 웹 앱</b>을 먼저 해요.</p>';
   const html = '<style>body{font-family:sans-serif;font-size:14px;color:#4A2E1E;margin:4px}p{margin:0 0 14px;line-height:1.5}' +
     'input{width:80%;padding:6px;font-size:13px;border:1px solid #DCC8AA;border-radius:6px}.hint{color:#7A5A45;font-size:13px}</style>' + body;
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(560).setHeight(ok ? 330 : 170), '🔗 웹앱 주소');
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(560).setHeight(ok ? 400 : 170), '🔗 웹앱 주소');
 }
 function studentByNo_(db, no) { return db.students.filter(function (s) { return s.no === Number(no); })[0] || null; }
 function nameOf_(db, no) { const s = studentByNo_(db, no); return s ? s.name : ''; }

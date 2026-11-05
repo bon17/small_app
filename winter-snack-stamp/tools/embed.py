@@ -9,7 +9,7 @@ Apps Script에는 Code.gs와 Index.html 두 파일만 붙여 넣으면 되도록
 - art/ 폴더의 그림 (PNG·JPG·WebP, ChatGPT로 그린 그림) → ART 표시 사이.
   파일 이름이 그림 이름이에요 (예: sticker-bung.png). 같은 이름이 여러 개면 PNG를 먼저 써요.
   앱이 아직 쓰지 않는 그림(예: char-*)은 art/에만 두고 넣지 않아요. Index.html이 무거워지지 않게요.
-  Pillow가 있으면 512px WebP로 줄여서 넣고, 없으면 파일 그대로 넣어요.
+  Pillow가 있으면 512px WebP로 줄여서 넣고(로고는 900px), 없으면 파일 그대로 넣어요.
 """
 import base64
 import io
@@ -22,11 +22,12 @@ INDEX = ROOT / 'Index.html'
 QR = ROOT / 'vendor' / 'qrcode-generator-1.4.4.js'
 ART = ROOT / 'art'
 MAX_PX = 512
+BIG_PX = {'logo': 900}  # 로고는 패드 잠금 화면에 크게 나와서 더 크게 넣어요
 EXTS = ['.png', '.webp', '.jpg', '.jpeg']
 MIME = {'.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
 
 
-def encode_image(path):
+def encode_image(path, max_px=MAX_PX):
     try:
         from PIL import Image  # type: ignore
     except ImportError:
@@ -34,7 +35,7 @@ def encode_image(path):
         return 'data:' + mime + ';base64,' + base64.b64encode(path.read_bytes()).decode()
     with Image.open(path) as im:
         im = im.convert('RGBA')
-        im.thumbnail((MAX_PX, MAX_PX))
+        im.thumbnail((max_px, max_px))
         buf = io.BytesIO()
         im.save(buf, 'WEBP', quality=86, method=6)
     return 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode()
@@ -82,7 +83,7 @@ def main():
                 print('건너뜀 (%s1~5가 다 모이면 넣어요, 지금 %d장):' % (prefix, len(have)), files.pop(k).name)
     for key in sorted(files):
         p = files[key]
-        entries.append("  '%s': '%s'," % (key, encode_image(p)))
+        entries.append("  '%s': '%s'," % (key, encode_image(p, BIG_PX.get(key, MAX_PX))))
         print('그림 넣음:', p.name)
     html = replace_between(html, '/*ART:BEGIN*/', '/*ART:END*/', '\n'.join(entries))
     INDEX.write_text(html, encoding='utf-8')
