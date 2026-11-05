@@ -59,7 +59,7 @@ function defaultSettings_() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const view = p.s ? 'student' : (p.v === 'admin' ? 'admin' : (p.v === 'pad' ? 'pad' : 'home'));
-  const url = serviceUrl_();
+  const url = liveUrl_(); // 웹앱이 열릴 때는 구글이 바른 주소를 알려 줘요
   rememberUrl_(url);
   const boot = { view: view, code: String(p.s || ''), url: url };
   // Apps Script는 HTML 파일을 읽을 때 /* 주석 */을 지워요. 그래서 자리 표시는 주석이 아니라 글자('__BOOT__')로 해요.
@@ -1154,15 +1154,15 @@ function withLock_(fn) {
 function err_(code, msg) { return new Error(code + ': ' + msg); }
 function now_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
+/** 구글이 알려 주는 지금 웹앱 주소. 웹앱이 열릴 때(doGet)만 믿을 수 있어요. */
+function liveUrl_() { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } }
 /**
- * 웹앱 주소(…/exec). 시트 메뉴처럼 웹앱 밖에서 부르면 구글이 선생님만 열 수 있는 …/dev 주소를 줄 때가 있어요.
- * 그래서 웹앱이 열릴 때 본 /exec 주소를 저장해 두고(rememberUrl_), /exec가 아니면 저장한 주소를 써요.
+ * 웹앱 주소(…/exec). 웹앱 밖(시트 메뉴, 화면에서 부르는 서버 함수)에서 구글에 물으면
+ * 편집용 배포 번호에 /exec를 붙인, 열리지 않는 주소("현재 파일을 열 수 없습니다")를 줄 때가 있어요(11/5 실제로 겪음).
+ * 그래서 웹앱이 열릴 때 본 주소를 저장해 두고(rememberUrl_) 그 주소만 써요. 아직 없으면 빈 칸이에요.
  */
 function serviceUrl_() {
-  let url = '';
-  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
-  if (/\/exec$/.test(url)) return url;
-  try { return PropertiesService.getScriptProperties().getProperty('webAppUrl') || url; } catch (e) { return url; }
+  try { return PropertiesService.getScriptProperties().getProperty('webAppUrl') || ''; } catch (e) { return ''; }
 }
 function rememberUrl_(url) {
   if (!/\/exec$/.test(url)) return;

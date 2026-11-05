@@ -1471,10 +1471,16 @@ Object.assign(ACTS, {
 const Adm = {
   // 담임 관리는 로그아웃을 누를 때까지 열려 있어요(담임 결정). 그래서 sessionStorage가 아니라 localStorage에 둬요.
   token: store.get('wss:admin') || '', v: null, tab: 'status', tkFilter: 'new', tkSel: new Set(), size: 'l', logNo: '',
+  /**
+   * 학생 링크·QR은 지금 열린 웹앱 주소(B.url: 웹앱이 열릴 때 구글이 알려 준 바른 주소)로 만들어요.
+   * 웹앱 밖에서 구글에 물은 주소는 열리지 않을 때가 있어서(11/5) 서버 주소는 그다음에 써요.
+   */
+  webUrl() { return /\/exec$/.test(B.url || '') ? B.url : ((this.v && this.v.url) || ''); },
+  stuLink(s) { const u = this.webUrl(); return u ? u + '?s=' + s.code : (s.link || ''); },
   /** 학생 QR 카드 한 장: QR, 이름, 내 코드 4자리 */
   qrCard(s, className) {
     let svg = '';
-    try { const qr = qrcode(0, 'M'); qr.addData(s.link); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
+    try { const qr = qrcode(0, 'M'); qr.addData(Adm.stuLink(s)); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
     return '<div class="qrcard"><div class="qr">' + svg + '</div><small>🏮 ' + esc(className) + ' 간식 포장마차</small><b>' + s.no + '번 ' + esc(s.name) + '</b>' +
       '<small class="qcode">내 코드 <b>' + esc(s.code) + '</b></small><small>나만 써요!</small></div>';
   },
@@ -1561,11 +1567,11 @@ const Adm = {
   t_roster() {
     const v = this.v;
     const text = v.students.map((s) => s.no + '\t' + s.name).join('\n');
-    const rows = v.students.map((s) => '<tr><td>' + s.no + '</td><td>' + esc(s.name) + '</td><td class="small"><span class="mono">' + esc(s.code) + '</span></td><td>' + (s.link ? '<button class="btn white xs" data-act="admCopy" data-link="' + esc(s.link) + '">링크 복사</button> <a class="btn white xs" href="' + esc(s.link) + '" target="_blank">열기</a>' : '<span class="muted small">웹앱 배포 뒤 생겨요</span>') + ' <button class="btn white xs" data-act="admRegen" data-no="' + s.no + '">코드 새로</button></td></tr>').join('');
+    const rows = v.students.map((s) => '<tr><td>' + s.no + '</td><td>' + esc(s.name) + '</td><td class="small"><span class="mono">' + esc(s.code) + '</span></td><td>' + (Adm.stuLink(s) ? '<button class="btn white xs" data-act="admCopy" data-link="' + esc(Adm.stuLink(s)) + '">링크 복사</button> <a class="btn white xs" href="' + esc(Adm.stuLink(s)) + '" target="_blank">열기</a>' : '<span class="muted small">웹앱 배포 뒤 생겨요</span>') + ' <button class="btn white xs" data-act="admRegen" data-no="' + s.no + '">코드 새로</button></td></tr>').join('');
     return '<div class="card"><h3>👩‍🎓 명단 <small>엑셀에서 번호·이름 두 칸을 복사해 붙여 넣거나, 한 줄에 한 명씩 "번호 이름"으로 써요</small></h3>' +
       '<textarea id="rosterText" rows="10" placeholder="1&#9;김하늘&#10;2&#9;이바다">' + esc(text) + '</textarea>' +
       '<div class="row" style="margin-top:8px"><span class="hint grow">개인 코드는 같은 학생이면 그대로 유지돼요. 명단은 시트에만 저장되고 저장소에는 올라가지 않아요.</span><button class="btn red" data-act="admRoster">명단 저장</button></div></div>' +
-      '<div class="card"><h3>🔗 학생 개인 링크·QR <small>학생은 자기 링크로 자기 것만 봐요</small></h3><div class="row" style="margin-bottom:10px"><button class="btn gold sm" data-act="admQrPrint"' + (v.url ? '' : ' disabled') + '>🖨 QR 카드 인쇄 (A4 한 장에 16명)</button><span class="hint">코드를 새로 만들면 예전 링크는 더 이상 열리지 않아요.</span></div>' +
+      '<div class="card"><h3>🔗 학생 개인 링크·QR <small>학생은 자기 링크로 자기 것만 봐요</small></h3><div class="row" style="margin-bottom:10px"><button class="btn gold sm" data-act="admQrPrint"' + (Adm.webUrl() ? '' : ' disabled') + '>🖨 QR 카드 인쇄 (A4 한 장에 16명)</button><span class="hint">코드를 새로 만들면 예전 링크는 더 이상 열리지 않아요.</span></div>' +
       '<div class="scroll"><table><thead><tr><th>번호</th><th>이름</th><th>코드</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
   },
   t_stats() {
@@ -1600,7 +1606,7 @@ const Adm = {
       '<label class="fld">저금통 단계 (한 줄에 "개수 | 보상")<textarea id="set_tiers" rows="3">' + esc(s.piggyTiers.map((t) => t.at + ' | ' + t.reward).join('\n')) + '</textarea></label>' +
       '<label class="fld">교시 시간표 (한 줄에 "교시 시작-끝")<textarea id="set_periods" rows="4">' + esc(s.periods.map((p) => p.n + ' ' + p.start + '-' + p.end).join('\n')) + '</textarea></label>' +
       '<label class="fld" style="flex-direction:row;align-items:center;gap:8px"><input id="set_recoverBulk" type="checkbox"' + (s.recoverBulk ? ' checked' : '') + '> 전체 선택으로 뺀 것도 되찾기 찬스를 줘요</label>' +
-      '</div><div class="row" style="margin-top:14px"><span class="hint grow">웹앱 주소: <span class="mono">' + esc(this.v.url || '배포 뒤 생겨요') + '</span></span><button class="btn red" data-act="admSaveSettings">설정 저장</button></div></div>';
+      '</div><div class="row" style="margin-top:14px"><span class="hint grow">웹앱 주소: <span class="mono">' + esc(Adm.webUrl() || '배포 뒤 생겨요') + '</span></span><button class="btn red" data-act="admSaveSettings">설정 저장</button></div></div>';
   },
   printTickets(list, reprint) {
     if (!list.length) { toast('출력할 교환권을 골라 주세요.', 'warn'); return; }

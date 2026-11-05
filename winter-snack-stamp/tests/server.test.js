@@ -414,3 +414,17 @@ test('학생 동작(찍기·맛 고르기·기부·칭찬) 응답은 시트를 �
   same(c.student(1, 'sendPraise', { to: 2, text: '수학 시간에 모르는 문제를 친절하게 알려 줘서 고마워' }), 1);
   same(c.student(2, 'rulesRead', {}), 2);
 });
+
+test('웹앱 밖에서 구글이 열리지 않는 /exec 주소(편집용 번호)를 줘도 메뉴·학생 링크는 웹앱이 열릴 때 본 주소를 써요', () => {
+  const app = loadApp();
+  const good = app.web.url; // 웹앱이 열릴 때(doGet) 구글이 알려 주는 바른 주소
+  app.sandbox.doGet({ parameter: {} });
+  app.web.url = 'https://script.google.com/macros/s/HEAD_DEPLOYMENT/exec'; // 시트 메뉴·서버 함수에서 받는 잘못된 주소
+  app.sandbox.showUrls();
+  const html = app.dialogs.pop().html;
+  assert.ok(html.includes(good + '?v=pad') && !html.includes('HEAD_DEPLOYMENT'));
+  const admin = app.ok('adminLogin', { pin: '0000' }).token;
+  const v = app.ok('saveRoster', { rows: [{ no: 1, name: '김하늘' }] }, { token: admin });
+  assert.equal(v.url, good);
+  assert.ok(v.students[0].link.startsWith(good + '?s='), '학생 QR 링크도 바른 주소로');
+});
