@@ -372,3 +372,27 @@ test('예전 영어 섞인 코드는 명단을 다시 저장하면 숫자 4자�
   assert.equal(new Set(codes).size, codes.length);
   assert.equal(v.students.find((s) => s.no === 2).code, c.codes[2], '이미 4자리인 학생은 그대로예요');
 });
+
+test('담임 관리 로그인은 로그아웃할 때까지 남아요 (6시간 캐시가 지나도). 교실 패드는 아니에요', () => {
+  const app = loadApp();
+  const admin = app.ok('adminLogin', { pin: '0000' }).token;
+  const teacher = app.ok('padLogin', { pin: '1234' }).token;
+  app.sandbox.CacheService.getScriptCache().remove('tok:' + admin); // 캐시가 사라진 것처럼
+  app.sandbox.CacheService.getScriptCache().remove('tok:' + teacher);
+  assert.equal(app.call('adminState', {}, { token: admin }).ok, true, '담임은 그대로 들어가요');
+  assert.equal(app.call('padState', {}, { token: teacher }).code, 'AUTH', '교실 패드는 다시 PIN을 넣어요');
+  app.ok('logout', {}, { token: admin });
+  assert.equal(app.call('adminState', {}, { token: admin }).code, 'AUTH', '로그아웃하면 끝');
+});
+
+test('관리자 PIN을 바꾸면 다른 담임 기기는 로그아웃돼요', () => {
+  const app = loadApp();
+  const pc = app.ok('adminLogin', { pin: '0000' }).token;
+  const phone = app.ok('adminLogin', { pin: '0000' }).token;
+  const v = app.ok('adminState', {}, { token: pc });
+  app.ok('saveSettings', { settings: Object.assign({}, v.settings, { adminPin: '5678' }) }, { token: pc });
+  app.sandbox.CacheService.getScriptCache().remove('tok:' + phone);
+  app.sandbox.CacheService.getScriptCache().remove('tok:' + pc);
+  assert.equal(app.call('adminState', {}, { token: phone }).code, 'AUTH');
+  assert.equal(app.call('adminState', {}, { token: pc }).ok, true, 'PIN을 바꾼 기기는 그대로예요');
+});

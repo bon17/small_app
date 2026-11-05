@@ -123,6 +123,7 @@ const HANDLERS = {
     return { className: v.className, piggy: v.piggy, todayMvp: v.todayMvp };
   },
   padLogin: function (req, p) { return { token: login_('teacher', p.pin) }; },
+  logout: function (req) { logout_(req.token); return true; },
   padState: function (req) { auth_(req.token, 'teacher'); return padView_(load_()); },
   startLesson: function (req, p) {
     auth_(req.token, 'teacher');
@@ -168,7 +169,20 @@ const HANDLERS = {
   adminLogin: function (req, p) { return { token: login_('admin', p.pin) }; },
   adminState: function (req) { auth_(req.token, 'admin'); return adminView_(load_()); },
   saveRoster: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveRoster_(p.rows || []); return adminView_(load_()); }); },
-  saveSettings: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveSettings_(p.settings || {}); return adminView_(load_()); }); },
+  saveSettings: function (req, p) {
+    auth_(req.token, 'admin');
+    return withLock_(function () {
+      const before = readSettings_().adminPin;
+      saveSettings_(p.settings || {});
+      if (readSettings_().adminPin !== before) {
+        // 관리자 PIN을 바꾸면 이 기기만 빼고 다른 담임 기기는 로그아웃돼요.
+        const keep = {};
+        keep[req.token] = Date.now();
+        saveAdminTokens_(keep);
+      }
+      return adminView_(load_());
+    });
+  },
   setStock: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveStock_(p.items || []); return adminView_(load_()); }); },
   exchange: function (req, p) {
     auth_(req.token, 'admin');
@@ -1074,12 +1088,35 @@ function login_(role, pin) {
   cache.remove(key);
   const token = Utilities.getUuid();
   cache.put('tok:' + token, role, 21600);
+  if (role === 'admin') {
+    // 담임 관리는 로그아웃을 누를 때까지 열려 있어요(담임 결정). 캐시는 6시간이면 사라져서 스크립트 속성에도 적어 둬요.
+    const list = adminTokens_();
+    list[token] = Date.now();
+    const keep = Object.keys(list).sort(function (a, b) { return list[b] - list[a]; }).slice(0, ADMIN_TOKENS_MAX);
+    saveAdminTokens_(keep.reduce(function (o, k) { o[k] = list[k]; return o; }, {}));
+  }
   return token;
 }
 
+const ADMIN_TOKENS_MAX = 10; // 로그인을 유지하는 담임 기기 수 (넘으면 가장 오래된 것부터 로그아웃)
+function adminTokens_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('adminTokens') || '{}'); } catch (e) { return {}; }
+}
+function saveAdminTokens_(list) { PropertiesService.getScriptProperties().setProperty('adminTokens', JSON.stringify(list)); }
+
 function auth_(token, role) {
-  const got = token ? CacheService.getScriptCache().get('tok:' + token) : null;
+  const cache = CacheService.getScriptCache();
+  let got = token ? cache.get('tok:' + token) : null;
+  if (!got && token && adminTokens_()[token]) { got = 'admin'; cache.put('tok:' + token, got, 21600); }
   if (!got || (got !== role && !(role === 'teacher' && got === 'admin'))) throw err_('AUTH', '다시 로그인해 주세요.');
+}
+
+/** 로그아웃: 이 기기의 로그인 표시를 지워요. */
+function logout_(token) {
+  if (!token) return;
+  CacheService.getScriptCache().remove('tok:' + token);
+  const list = adminTokens_();
+  if (list[token]) { delete list[token]; saveAdminTokens_(list); }
 }
 
 /**

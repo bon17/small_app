@@ -160,6 +160,14 @@ async function main() {
   await s2.waitForTimeout(500);
   await shot(s2, '17-student-ticket');
   await s2.click('[data-act="closeModal"]');
+  // 로그아웃 전에는 첫 화면 주소를 열어도 바로 내 화면이 나와요. 로그아웃하면 첫 화면으로 돌아가요.
+  await s2.goto('https://app.test/exec', { waitUntil: 'load' });
+  await s2.waitForSelector('[data-act="stuLogout"]', { timeout: 5000 });
+  await s2.click('[data-act="stuLogout"]');
+  await s2.click('#cfYes');
+  await s2.waitForSelector('text=로그아웃했어요');
+  await s2.click('text=첫 화면으로');
+  await s2.waitForSelector('#stuCode', { timeout: 5000 });
   // 3번 학생: 호빵 쿠폰을 모두 찍어 다 채우고 맛을 골라 교환권 받기 (야채는 품절)
   app.ok('adjust', { no: 3, amount: 50, reason: '확인용', actionId: aid() }, { token: admin });
   app.ok('rulesRead', { actionId: aid() }, { code: codes[3] });
@@ -184,6 +192,10 @@ async function main() {
   await adm.fill('#admPin', '0000');
   await adm.click('[data-act="admLogin"]');
   await adm.waitForSelector('.atabs');
+  // 담임 관리는 창을 다시 열어도(새로 고침) 로그아웃 전까지 PIN을 다시 묻지 않아요.
+  if (!(await adm.evaluate(() => localStorage.getItem('wss:admin')))) throw new Error('담임 로그인이 창을 닫아도 남도록 localStorage에 있어야 해요');
+  await adm.reload({ waitUntil: 'load' });
+  await adm.waitForSelector('.atabs', { timeout: 5000 });
   await shot(adm, '20-admin-status');
   for (const [t, n] of [['tickets', '21-admin-tickets'], ['stock', '22-admin-stock'], ['praise', '23-admin-praise'], ['log', '24-admin-log'], ['roster', '25-admin-roster'], ['stats', '26-admin-stats'], ['settings', '27-admin-settings']]) {
     await adm.click('[data-act="admTab"][data-t="' + t + '"]');
@@ -205,11 +217,15 @@ async function main() {
     Tk.fit(document.body);
   });
   await shot(print, '30-print-tickets', true);
-  await print.evaluate(() => {
-    const kids = Array.from({ length: 8 }, (_, i) => ({ no: i + 1, name: ['김하늘', '이바다', '박구름', '최별', '정눈', '강솔', '조은비', '윤도현'][i], code: String(4821 + i * 637), link: 'https://script.google.com/macros/s/TEST/exec?s=' + (4821 + i * 637) }));
+  // A4 한 장에 16명 (실제 웹앱 주소 길이로 QR을 만들어요)
+  await print.evaluate((names) => {
+    const kids = names.slice(0, 16).map((name, i) => {
+      const code = String(1000 + (4821 + i * 577) % 9000);
+      return { no: i + 1, name, code, link: 'https://script.google.com/macros/s/AKfycbw9SM48ZIEP6iBcOkbK-2ACB0ROc9phUdjxLdZ2cAVLd-0WIWyBJNVu_GexYmH_ZCjW1A/exec?s=' + code };
+    });
     const card = (s) => Adm.qrCard(s, '2학년 3반');
     document.body.innerHTML = '<div id="printRoot" style="display:block"><div class="sheet"><div class="qrsheet">' + kids.map(card).join('') + '</div></div></div>';
-  });
+  }, NAMES);
   await shot(print, '31-print-qr', true);
   // 그림 모음
   await print.evaluate(() => {

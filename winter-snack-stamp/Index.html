@@ -299,14 +299,15 @@ img.pic{display:block;width:100%;height:auto}
 .cut.v{top:0;bottom:0;width:0;border-left:.25mm dashed #A3AAB5}
 .cut.h{left:0;right:0;height:0;border-top:.25mm dashed #A3AAB5}
 .sfoot{position:absolute;left:14mm;bottom:4.6mm;font-size:2.3mm;color:#9AA1AC;font-weight:700}
-.qrsheet{display:grid;grid-template-columns:repeat(2,90mm);grid-auto-rows:66mm;gap:4mm;padding:12mm 13mm}
-.qrcard{border:.4mm dashed #C9B8A0;border-radius:4mm;padding:4mm;display:flex;gap:4mm;align-items:center;font-family:var(--body);color:var(--ink)}
-.qrcard .qr{width:42mm;height:42mm;flex:none}
+/* 학생 QR 카드: A4 한 장에 16장 (가로 4 × 세로 4) */
+.qrsheet{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:66mm;gap:3mm;padding:10mm}
+.qrcard{border:.4mm dashed #C9B8A0;border-radius:3mm;padding:3mm 2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1mm;text-align:center;font-family:var(--body);color:var(--ink);overflow:hidden}
+.qrcard .qr{width:34mm;height:34mm;flex:none}
 .qrcard .qr svg{width:100%;height:100%}
-.qrcard b{font-family:var(--title);font-weight:400;font-size:7mm;display:block;line-height:1.2}
-.qrcard small{display:block;font-size:3mm;color:#7A5A45;line-height:1.4}
-.qrcard .qcode{margin-top:1.5mm;color:var(--ink)}
-.qrcard .qcode b{display:inline;font-family:var(--mono);font-weight:800;font-size:5mm;letter-spacing:.8mm}
+.qrcard b{font-family:var(--title);font-weight:400;font-size:5.4mm;display:block;line-height:1.15;white-space:nowrap}
+.qrcard small{display:block;font-size:2.5mm;color:#7A5A45;line-height:1.3;white-space:nowrap}
+.qrcard .qcode{color:var(--ink);font-size:2.8mm}
+.qrcard .qcode b{display:inline;font-family:var(--mono);font-weight:800;font-size:4.6mm;letter-spacing:.8mm}
 @media print{
   @page{size:A4 portrait;margin:0}
   html,body{background:#fff !important}
@@ -1104,9 +1105,13 @@ const Stu = {
     setInterval(() => { if (!document.hidden && !$('.modal')) this.load(true); }, 60000);
   },
   async load(quiet) {
-    try { this.set(await call('studentState')); } catch (e) {
+    try {
+      this.set(await call('studentState'));
+      store.set('wss:me', B.code); // 로그아웃을 누를 때까지 첫 화면을 열어도 바로 내 화면으로 와요
+    } catch (e) {
+      if (e.code === 'CODE' && store.get('wss:me') === B.code) store.del('wss:me');
       if (!quiet) render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🏮 겨울 간식 포장마차</div><p style="margin-top:12px">' + esc(e.msg || '잠시 뒤 다시 열어 주세요.') + '</p>' +
-        (e.code === 'CODE' || e.code === 'LOCKED' ? '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">코드 다시 넣기</a>' : '') + '</div></div>');
+        (e.code === 'CODE' ? '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">코드 다시 넣기</a>' : '') + '</div></div>');
       return;
     }
     this.render();
@@ -1172,6 +1177,8 @@ const Stu = {
       '<div class="card"><h3>💌 칭찬 편지함 <small>받은 칭찬 ' + v.praisesReceived.length + '통</small></h3>' + (recv ? '<div class="list">' + recv + '</div>' : '<div class="empty">아직 받은 칭찬이 없어요</div>') +
       '<div class="row" style="margin-top:10px"><button class="btn white sm" data-act="stuPraiseList"' + (v.praisesReceived.length + v.praisesSent.length ? '' : ' disabled') + '>모두 보기</button><span class="grow"></span><button class="btn red" data-act="stuPraise">💌 친구 칭찬하기</button></div></div>' +
       '<div class="card"><h3>🧾 주문 영수증 <small>최근 기록</small></h3>' + (hist || '<div class="empty">아직 기록이 없어요</div>') + '</div>' +
+      '<div class="center" style="margin:6px 0 18px"><button class="btn white sm" data-act="stuLogout">🚪 로그아웃</button>' +
+      '<div class="hint" style="margin-top:6px">내 폰이면 그냥 두어도 돼요. 친구·학교 기기에서 썼다면 꼭 눌러요.</div></div>' +
       '</div>');
   },
   showRules(first) {
@@ -1323,6 +1330,12 @@ const Stu = {
 };
 Object.assign(ACTS, {
   stuRules() { Stu.showRules(false); },
+  async stuLogout() {
+    if (!(await confirmBox('로그아웃할까요?', '<p>다음에 들어올 때 QR을 찍거나 내 코드 4자리를 다시 넣어요.</p>', '로그아웃'))) return;
+    store.del('wss:me');
+    render('<div class="wrap"><div class="card center" style="padding:30px"><div class="page-title" style="justify-content:center">🚪 로그아웃했어요</div>' +
+      '<a class="btn gold" style="margin-top:16px" href="' + esc(link('')) + '">첫 화면으로</a></div></div>');
+  },
   async stuRulesOk() {
     closeModal();
     try { Stu.set(await call('rulesRead', { actionId: uid() })); } catch (e) {}
@@ -1370,19 +1383,19 @@ Object.assign(ACTS, {
 
 /* ════════════════════════ 담임 관리 ════════════════════════ */
 const Adm = {
-  token: store.get('wss:admin', true) || '', v: null, tab: 'status', tkFilter: 'new', tkSel: new Set(), size: 'l', logNo: '',
+  // 담임 관리는 로그아웃을 누를 때까지 열려 있어요(담임 결정). 그래서 sessionStorage가 아니라 localStorage에 둬요.
+  token: store.get('wss:admin') || '', v: null, tab: 'status', tkFilter: 'new', tkSel: new Set(), size: 'l', logNo: '',
   /** 학생 QR 카드 한 장: QR, 이름, 내 코드 4자리 */
   qrCard(s, className) {
     let svg = '';
     try { const qr = qrcode(0, 'M'); qr.addData(s.link); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = ''; }
-    return '<div class="qrcard"><div class="qr">' + svg + '</div><div><small>🏮 ' + esc(className) + ' 겨울 간식 포장마차</small><b>' + s.no + '번 ' + esc(s.name) + '</b>' +
-      '<small>폰 카메라로 찍으면 내 스탬프·쿠폰이 열려요. 내 QR과 코드는 나만 써요!</small>' +
-      '<small class="qcode">내 코드 <b>' + esc(s.code) + '</b></small></div></div>';
+    return '<div class="qrcard"><div class="qr">' + svg + '</div><small>🏮 ' + esc(className) + ' 간식 포장마차</small><b>' + s.no + '번 ' + esc(s.name) + '</b>' +
+      '<small class="qcode">내 코드 <b>' + esc(s.code) + '</b></small><small>나만 써요!</small></div>';
   },
   async init() {
     document.body.classList.add('admin');
     SESSION_TOKEN = this.token;
-    if (this.token) { try { this.v = await call('adminState'); } catch (e) { this.token = ''; store.del('wss:admin', true); } }
+    if (this.token) { try { this.v = await call('adminState'); } catch (e) { if (e.code === 'AUTH') { this.token = ''; SESSION_TOKEN = ''; store.del('wss:admin'); } } }
     this.render();
   },
   async reload() { try { this.v = await call('adminState'); this.render(); } catch (e) { toast(e.msg, 'warn'); if (e.code === 'AUTH') { this.token = ''; this.v = null; this.render(); } } },
@@ -1400,7 +1413,7 @@ const Adm = {
     const tabs = [['status', '현황'], ['tickets', '교환권'], ['stock', '재고·간식 준비'], ['praise', '칭찬'], ['log', '기록'], ['roster', '명단·QR'], ['stats', '통계·저금통'], ['settings', '설정']];
     const body = this['t_' + this.tab]();
     render('<div class="wrap wide"><div class="row" style="margin-bottom:12px"><div class="page-title grow"><span class="em">📒</span>' + esc(this.v.className) + ' 포장마차 사장님 장부</div>' +
-      '<button class="btn white sm" data-act="admReload">새로고침</button><button class="btn white sm" data-act="admLogout">잠그기</button></div>' +
+      '<button class="btn white sm" data-act="admReload">새로고침</button><button class="btn white sm" data-act="admLogout">로그아웃</button></div>' +
       '<div class="atabs">' + tabs.map((t) => '<button class="' + (this.tab === t[0] ? 'on' : '') + '" data-act="admTab" data-t="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' + body + '</div>');
     if (this.after) { const f = this.after; this.after = null; f(); }
   },
@@ -1466,7 +1479,7 @@ const Adm = {
     return '<div class="card"><h3>👩‍🎓 명단 <small>엑셀에서 번호·이름 두 칸을 복사해 붙여 넣거나, 한 줄에 한 명씩 "번호 이름"으로 써요</small></h3>' +
       '<textarea id="rosterText" rows="10" placeholder="1&#9;김하늘&#10;2&#9;이바다">' + esc(text) + '</textarea>' +
       '<div class="row" style="margin-top:8px"><span class="hint grow">개인 코드는 같은 학생이면 그대로 유지돼요. 명단은 시트에만 저장되고 저장소에는 올라가지 않아요.</span><button class="btn red" data-act="admRoster">명단 저장</button></div></div>' +
-      '<div class="card"><h3>🔗 학생 개인 링크·QR <small>학생은 자기 링크로 자기 것만 봐요</small></h3><div class="row" style="margin-bottom:10px"><button class="btn gold sm" data-act="admQrPrint"' + (v.url ? '' : ' disabled') + '>🖨 QR 카드 인쇄 (A4 8장)</button><span class="hint">코드를 새로 만들면 예전 링크는 더 이상 열리지 않아요.</span></div>' +
+      '<div class="card"><h3>🔗 학생 개인 링크·QR <small>학생은 자기 링크로 자기 것만 봐요</small></h3><div class="row" style="margin-bottom:10px"><button class="btn gold sm" data-act="admQrPrint"' + (v.url ? '' : ' disabled') + '>🖨 QR 카드 인쇄 (A4 한 장에 16명)</button><span class="hint">코드를 새로 만들면 예전 링크는 더 이상 열리지 않아요.</span></div>' +
       '<div class="scroll"><table><thead><tr><th>번호</th><th>이름</th><th>코드</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
   },
   t_stats() {
@@ -1517,11 +1530,14 @@ Object.assign(ACTS, {
   async admLogin() {
     try {
       const r = await call('adminLogin', { pin: $('#admPin').value });
-      Adm.token = r.token; SESSION_TOKEN = r.token; store.set('wss:admin', r.token, true);
+      Adm.token = r.token; SESSION_TOKEN = r.token; store.set('wss:admin', r.token);
       Adm.v = await call('adminState'); Adm.render();
     } catch (e) { toast(e.msg, 'warn'); }
   },
-  admLogout() { Adm.token = ''; SESSION_TOKEN = ''; store.del('wss:admin', true); Adm.v = null; Adm.render(); },
+  admLogout() {
+    call('logout').catch(() => {});
+    Adm.token = ''; SESSION_TOKEN = ''; store.del('wss:admin'); Adm.v = null; Adm.render();
+  },
   admReload() { Adm.reload(); },
   admTab(t) { Adm.tab = t.dataset.t; Adm.render(); },
   admTkFilter(t) { Adm.tkFilter = t.dataset.f; Adm.tkSel.clear(); Adm.render(); },
@@ -1562,7 +1578,7 @@ Object.assign(ACTS, {
     const v = Adm.v;
     const card = (s) => Adm.qrCard(s, v.className);
     let html = '';
-    for (let i = 0; i < v.students.length; i += 8) html += '<div class="sheet"><div class="qrsheet">' + v.students.slice(i, i + 8).map(card).join('') + '</div></div>';
+    for (let i = 0; i < v.students.length; i += 16) html += '<div class="sheet"><div class="qrsheet">' + v.students.slice(i, i + 16).map(card).join('') + '</div></div>';
     printHtml(html);
   },
   admReward(t) { Adm.run('rewardDone', { at: Number(t.dataset.at) }, '보상 완료로 표시했어요.'); },
@@ -1587,6 +1603,8 @@ document.addEventListener('change', (e) => {
 });
 
 /* ════════════════════════ 시작 ════════════════════════ */
+// 이 기기에서 학생이 들어온 적이 있으면(로그아웃 전) 첫 화면 대신 바로 그 학생 화면을 열어요.
+if (B.view === 'home' && store.get('wss:me')) { B.view = 'student'; B.code = store.get('wss:me'); }
 ({ pad: Pad, admin: Adm, student: Stu, home: Home }[B.view] || Home).init();
 </script>
 <script>
