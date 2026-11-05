@@ -28,7 +28,7 @@ function defaultSettings_() {
     className: '우리 반',
     teacherPin: '1234',
     adminPin: '0000',
-    cells: { bung: 40, hop: 60 },
+    cells: { bung: 30, hop: 45 },
     mvpStamps: 2,
     flavors: { bung: ['슈크림', '팥'], hop: ['피자', '단팥', '야채', '고구마'] },
     golden: { step: 10, perStep: 1, max: 7, amount: 3 },
@@ -708,6 +708,7 @@ function studentView_(db, me) {
   const version = rulesVersion_(cfg);
   return {
     me: { no: me.no, name: me.name },
+    soldOutAll: soldOutAll_(st),
     className: cfg.className,
     unstamped: s.unstamped,
     coupons: {
@@ -739,6 +740,12 @@ function studentView_(db, me) {
     today: today_(),
     validUntil: validUntil,
   };
+}
+
+/** 사 온 간식이 있는데 모든 맛이 다 떨어졌으면 true (이벤트가 일찍 끝날 수 있다는 안내용) */
+function soldOutAll_(st) {
+  const list = Object.keys(st.stock).map(function (k) { return st.stock[k]; });
+  return list.some(function (x) { return x.stocked > 0; }) && list.every(function (x) { return x.left <= 0; });
 }
 
 function ticketOut_(t, validUntil) {
@@ -793,6 +800,7 @@ function adminView_(db) {
     log: recentLog,
     piggy: piggyView_(cfg, st),
     prep: { waiting: waiting, nearly: nearly },
+    soldOutAll: soldOutAll_(st),
     lessons: lessonStats_(st),
     projection: projection_(cfg, st, db),
     rulesVersion: version,
@@ -850,7 +858,7 @@ function projection_(cfg, st, db) {
   const first = cfg.startDate || (st.lessonList[0] ? st.lessonList[0].date : '');
   if (!first) return null;
   const start = parseTs_(first + ' 00:00:00');
-  const end = cfg.endDate ? parseTs_(cfg.endDate + ' 00:00:00') : new Date(start.getTime() + 29 * 86400000);
+  const end = cfg.endDate ? parseTs_(cfg.endDate + ' 00:00:00') : new Date(start.getTime() + 20 * 86400000);
   const today = parseTs_(today_() + ' 00:00:00');
   const elapsed = Math.max(1, Math.round((Math.min(today, end) - start) / 86400000) + 1);
   const total = Math.max(1, Math.round((end - start) / 86400000) + 1);

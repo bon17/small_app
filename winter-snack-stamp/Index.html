@@ -1119,6 +1119,7 @@ const Stu = {
     render('<div class="wrap">' +
       '<div class="stuhead"><div class="page-title grow"><span class="em">🏮</span>' + v.me.no + '번 ' + esc(v.me.name) + '의 간식 포장마차</div>' +
       (dday !== null && dday >= 0 ? '<span class="pill">❄ D-' + dday + '</span>' : '') + '<button class="btn white sm" data-act="stuRules">📜 규칙</button></div>' +
+      (v.soldOutAll ? '<div class="card" style="background:#FFF1DE;border-color:#F3C98F;box-shadow:0 4px 0 #F3C98F"><b class="title" style="font-size:19px">🍂 간식이 모두 떨어졌어요</b><div class="hint">준비한 간식이 다 떨어져서 이벤트가 예정보다 일찍 끝날 수 있어요. 담임 선생님 안내를 기다려 주세요.</div></div>' : '') +
       '<div class="card"><div class="batter"><div class="art">' + Art.batter() + '</div><div class="grow"><div class="small muted" style="font-weight:800">아직 안 찍은 반죽</div>' +
       '<div class="big">' + (unst < 0 ? '<span class="minus">' + unst + '</span>' : unst + '개') + '</div>' +
       (unst < 0 ? '<div class="hint">다음에 받는 스탬프로 ' + (-unst) + '개를 갚아요.</div>' : '<div class="hint">쿠폰에 찍거나 저금통에 기부할 수 있어요.</div>') +
@@ -1148,6 +1149,7 @@ const Stu = {
       '<h4>3. 쿠폰 채우기</h4><ul><li>받은 스탬프는 🥣 반죽으로 쌓여요. <b>붕어빵 쿠폰(' + r.cells.bung + '칸)</b>과 <b>호빵 쿠폰(' + r.cells.hop + '칸)</b> 중에 골라서 찍어요.</li>' +
       '<li>칸이 찰수록 붕어빵은 노릇노릇 구워지고, 호빵은 따끈따끈해져요.</li><li>다 채우면 맛을 골라요. 붕어빵은 ' + esc(flav('bung')) + ', 호빵은 ' + esc(flav('hop')) + '.</li>' +
       '<li>맛마다 수량이 정해져 있어요. 쿠폰을 먼저 채운 친구가 먼저 골라요. 원하는 맛이 다 떨어지면 다른 맛을 골라야 해요!</li>' +
+      '<li>🍂 간식은 준비한 만큼만 있어요. <b>간식이 모두 떨어지면 이벤트가 예정보다 일찍 끝날 수 있어요!</b></li>' +
       '<li>🎫 교환권을 담임 선생님께 가져가면 간식으로 바꿔 줘요.' + (r.validUntil ? ' 사용기간은 <b>' + fmtDate(r.validUntil) + '까지</b>예요.' : '') + '</li></ul>' +
       '<h4>4. 🐷 우리 반 저금통</h4><ul><li>아직 안 찍은 반죽을 저금통에 기부할 수 있어요. 기부한 스탬프는 돌려받을 수 없어요.</li>' + tiers +
       '<li>누가 얼마나 기부했는지는 친구들에게 보이지 않아요.</li><li>기부를 많이 할수록 황금 붕어빵이 더 잘 떠요.</li></ul>' +
@@ -1364,7 +1366,8 @@ const Adm = {
       '<td><div class="mini"><div class="bar hop"><i style="width:' + Math.min(100, s.hop / cfg.cells.hop * 100) + '%"></i></div><small>' + s.hop + '/' + cfg.cells.hop + '</small></div></td>' +
       '<td class="num">' + (s.ticketsWaiting ? '<span class="pill">' + s.ticketsWaiting + '장 대기</span> ' : '') + (s.ticketsDone ? s.ticketsDone + '장 완료' : '') + '</td>' +
       '<td class="num">' + s.donated + '</td><td class="num plus">' + s.received + '</td><td class="num minus">' + (s.lost ? '−' + s.lost : '') + '</td><td class="num">' + (s.recovered || '') + '</td><td>' + (s.rulesRead ? '✔' : '<span class="muted">아직</span>') + '</td></tr>').join('');
-    return '<div class="stats"><div class="stat"><b>🐷 ' + v.piggy.total + (v.piggy.next ? '/' + v.piggy.next.at : '') + '</b><span>우리 반 저금통</span></div>' +
+    return (v.soldOutAll ? '<div class="card" style="margin-bottom:14px;background:#FFF1DE;border-color:#F3C98F"><b>🍂 모든 맛이 품절이에요.</b> 학생 화면에 "이벤트가 일찍 끝날 수 있어요"가 떠요. 더 사 오거나, 설정에서 활동 끝 날짜를 바꿔 이벤트를 마쳐요.</div>' : '') +
+      '<div class="stats"><div class="stat"><b>🐷 ' + v.piggy.total + (v.piggy.next ? '/' + v.piggy.next.at : '') + '</b><span>우리 반 저금통</span></div>' +
       '<div class="stat"><b>🎫 ' + waiting + '장</b><span>교환을 기다리는 교환권</span></div>' +
       '<div class="stat"><b>📜 ' + read + '/' + v.students.length + '</b><span>규칙을 읽은 학생</span></div>' +
       '<div class="stat"><b>🔔 ' + v.lessons.week.ready + '/' + v.lessons.week.total + '</b><span>이번 주 수업 준비 성공</span></div></div>' +
@@ -1389,7 +1392,7 @@ const Adm = {
     const rows = v.stock.map((s, i) => '<tr><td>' + (s.coupon === 'hop' ? '호빵' : '붕어빵') + '</td><td><b>' + esc(s.flavor) + '</b></td><td><input type="number" min="0" data-stock="' + i + '" value="' + s.stocked + '" style="width:90px"></td><td class="num">' + s.reserved + '</td><td class="num">' + s.exchanged + '</td><td class="num"><b class="' + (s.left <= 0 ? 'minus' : '') + '">' + (s.left <= 0 ? '품절' : s.left) + '</b></td></tr>').join('');
     const wait = Object.keys(v.prep.waiting).map((k) => '<span class="pill">' + esc(k) + ' ' + v.prep.waiting[k] + '개</span>').join(' ');
     return '<div class="card"><h3>🧺 재고 진열대 <small>입고 수량만 넣으면 남은 개수는 저절로 계산돼요</small></h3><div class="scroll"><table><thead><tr><th>쿠폰</th><th>맛</th><th>입고(산 개수)</th><th class="num">예약(교환 대기)</th><th class="num">교환 완료</th><th class="num">남은</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<div class="row" style="margin-top:10px"><span class="hint grow">간식을 더 사 오면 입고 수량을 늘려 주세요. 남은 개수가 0이면 학생 화면에서 품절로 보여요.</span><button class="btn red" data-act="admStockSave">재고 저장</button></div></div>' +
+      '<div class="row" style="margin-top:10px"><span class="hint grow">간식을 더 사 오면 입고 수량을 늘려 주세요. 남은 개수가 0이면 학생 화면에서 품절로 보여요. 모든 맛이 품절되면 학생 화면에 "간식이 모두 떨어져 이벤트가 일찍 끝날 수 있어요"가 떠요. 이벤트를 일찍 끝내려면 설정에서 활동 끝 날짜를 바꿔요.</span><button class="btn red" data-act="admStockSave">재고 저장</button></div></div>' +
       '<div class="card"><h3>🛒 간식 준비 <small>장보기 참고용</small></h3><p><b>지금 교환을 기다리는 것:</b> ' + (wait || '없음') + '</p>' +
       '<p style="margin-top:6px"><b>곧 다 차는 쿠폰 (80% 이상):</b> 붕어빵 ' + v.prep.nearly.bung + '명 · 호빵 ' + v.prep.nearly.hop + '명</p></div>';
   },
@@ -1429,7 +1432,7 @@ const Adm = {
     if (P) {
       proj = '<p style="font-size:17px">지금 속도라면 활동이 끝날 때 <b>최고 ' + P.max + '개</b>, <b>평균 ' + P.avg + '개</b>를 받을 것 같아요.</p>' +
         '<p class="hint" style="margin-top:6px">' + P.elapsedDays + '일째 / 전체 ' + P.totalDays + '일 · 붕어빵 쿠폰(' + P.cells.bung + '칸)으로 치면 최고 ' + (P.max / P.cells.bung).toFixed(1) + '장, 평균 ' + (P.avg / P.cells.bung).toFixed(1) + '장</p>' +
-        '<p class="hint">기획(한 달): 진짜 열심히 하는 학생 ≈ 120~140개, 보통 학생 ≈ 70개. 너무 쉽거나 어려우면 설정에서 칸 수를 <b>한 번만</b> 조정해요.</p>';
+        '<p class="hint">기획: 진짜 열심히 하는 학생 ≈ 90~105개, 보통 학생 ≈ 50개. 너무 쉽거나 어려우면 설정에서 칸 수를 <b>한 번만</b> 조정해요.</p>';
     }
     return '<div class="card"><h3>🐷 저금통 단계와 보상</h3><p style="margin-bottom:10px">지금 <b>' + v.piggy.total + '개</b></p><div class="list">' + (tiers || '<div class="empty">설정에서 단계를 넣어 주세요.</div>') + '</div></div>' +
       '<div class="card"><h3>📈 1주차 점검</h3>' + proj + '</div>' +

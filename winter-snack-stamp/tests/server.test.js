@@ -306,3 +306,18 @@ test('담임 화면: 현황, 교환권 출력 표시, 직접 더하기·빼기, 
   assert.equal(v.prep.waiting['붕어빵 슈크림'], 1);
   assert.ok(v.projection);
 });
+
+test('모든 맛이 품절되면 학생·담임 화면에 이벤트가 일찍 끝날 수 있다고 알려요', () => {
+  const c = setupClass({ settings: { cells: { bung: 5, hop: 45 } } });
+  assert.equal(c.me(1).soldOutAll, false, '아직 간식을 사 오기 전(입고 0)에는 안 떠요');
+  c.stock([{ coupon: 'bung', flavor: '팥', stocked: 1 }]);
+  assert.equal(c.me(1).soldOutAll, false);
+  const L = c.start();
+  c.award(L, 'extra', [1], { amount: 5 });
+  c.student(1, 'stamp', { coupon: 'bung', n: 5 });
+  const me = c.student(1, 'chooseFlavor', { coupon: 'bung', flavor: '팥' });
+  assert.equal(me.soldOutAll, true);
+  assert.equal(c.adminView().soldOutAll, true);
+  c.stock([{ coupon: 'bung', flavor: '팥', stocked: 3 }]);
+  assert.equal(c.me(1).soldOutAll, false, '더 사 오면 사라져요');
+});
