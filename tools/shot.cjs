@@ -30,6 +30,7 @@ const fileOf = (a) => path.join(root, a.shot || path.join('shots', a.id + '.jpg'
 
 const targets = apps.filter((a) => {
   if (ids.length) return ids.includes(a.id);
+  if (a.keepShot) return false; // 직접 넣은 사진은 --all 로도 덮어쓰지 않음 (id 를 직접 적으면 찍어요)
   return all || !fs.existsSync(fileOf(a));
 });
 

@@ -10,6 +10,7 @@
 //  shot  (선택) 첫 화면 사진 경로. 비우면 shots/<id>.jpg
 //  hide  (선택) 사진을 찍을 때 흐리게 가릴 부분의 CSS 선택자. 화면에 사람 이름 같은
 //        개인정보가 보이는 앱에 써요. (tools/shot.cjs 가 찍을 때만 적용돼요)
+//  keepShot  (선택) true 면 직접 넣은 사진이라 자동 촬영(--all 포함)이 덮어쓰지 않아요.
 // ─────────────────────────────────────────────────────────────
 
 window.HUB = {
@@ -131,6 +132,7 @@ window.APPS = [
     name: '우리반 겨울간식 포장마차',
     desc: '',
     url: 'https://script.google.com/macros/s/AKfycbw9SM48ZIEP6iBcOkbK-2ACB0ROc9phUdjxLdZ2cAVLd-0WIWyBJNVu_GexYmH_ZCjW1A/exec',
+    keepShot: true, // 앱스 스크립트 화면은 자동 촬영이 안 돼서 직접 캡처한 사진을 써요
   },
   {
     id: 'gisan-vote', tab: 'homeroom',
