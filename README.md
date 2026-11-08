@@ -64,4 +64,5 @@ node tools/shot.cjs my-app         # 지정한 앱만 다시
 | `app.js` | 탭과 카드를 그리는 코드 |
 | `apps.js` | **앱 목록과 탭 설정** (앱을 추가할 때 고치는 파일) |
 | `shots/` | 앱 첫 화면 사진 (`<id>.jpg`) |
+| `fonts/nanum-myeongjo/` | 나눔명조 글꼴 400·800 (SIL OFL 1.1, `LICENSE.txt`). 화면에 나오는 글자 조각만 내려받아요. |
 | `tools/shot.cjs` | 첫 화면 사진 자동 촬영 도구 |

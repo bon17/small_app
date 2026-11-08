@@ -7,8 +7,11 @@
   --faint:#8A857B;   /* 아이콘·숫자 */
   --line:#E4DFD5; --accent:#E5532D;
   --gutter:clamp(20px,6vw,80px);
-  --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',system-ui,sans-serif;
-  --mono:ui-monospace,'SF Mono',Menlo,Consolas,'D2Coding',monospace;
+  /* 글꼴: 저장소에 함께 넣은 나눔명조(fonts/nanum-myeongjo). 어떤 기기에서든 똑같이 보여요.
+     굵기는 400(본문)과 800(제목·이름·탭)만 들어 있어요. */
+  --font:'Nanum Myeongjo','Noto Serif KR','AppleMyungjo','Batang',serif;
+  /* 주소: 영문은 고정폭, 한글(예: joo.is/산업혁명게임)은 나눔명조로 */
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Nanum Myeongjo',monospace;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;color-scheme:light}
@@ -17,7 +20,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line
 
 /* ───────── 맨 위 ───────── */
 .top{padding-top:clamp(40px,8vw,88px)}
-.top h1{margin:0;font-size:clamp(38px,5.4vw,62px);font-weight:800;letter-spacing:-.035em;line-height:1.08}
+.top h1{margin:0;font-size:clamp(38px,5.4vw,62px);font-weight:800;letter-spacing:-.02em;line-height:1.1}
 .sub{margin:10px 0 0;font-size:clamp(15px,1.5vw,18px);color:var(--muted)}
 
 /* ───────── 탭 ───────── */
@@ -25,13 +28,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line
 .tabs button{
   appearance:none;background:none;border:0;border-bottom:2px solid transparent;
   margin:0 0 -1px;padding:10px 2px 12px;
-  font:inherit;font-size:clamp(16px,1.6vw,18px);font-weight:600;color:var(--muted);
+  font:inherit;font-size:clamp(16px,1.6vw,18px);font-weight:800;color:var(--muted);
   cursor:pointer;white-space:nowrap;
 }
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 .tabs button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
-.count{margin-left:7px;font-size:.78em;font-weight:500;color:var(--faint);font-variant-numeric:tabular-nums}
+.count{margin-left:7px;font-size:.78em;font-weight:400;color:var(--faint);font-variant-numeric:tabular-nums}
 
 /* ───────── 목록 ───────── */
 .grid{
@@ -64,7 +67,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line
 
 .cap{padding-top:14px}
 .name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.name{margin:0;font-size:clamp(18px,1.7vw,20px);font-weight:700;letter-spacing:-.015em;line-height:1.35}
+.name{margin:0;font-size:clamp(18px,1.7vw,20px);font-weight:800;letter-spacing:-.01em;line-height:1.35}
 .arrow{flex:none;margin-top:3px;color:var(--faint);transition:color .15s ease,transform .15s ease}
 .desc{
   margin:3px 0 0;font-size:15px;line-height:1.5;color:var(--muted);
