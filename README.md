@@ -6,7 +6,7 @@
 
 ## 보는 법
 
-- 인터넷에 올린 뒤에는 GitHub Pages 주소로 들어가면 돼요. (올리는 법은 아래)
+- 인터넷 주소: **https://gyosil-seorap.kbe950107.workers.dev** (배포 방법은 아래)
 - 내 컴퓨터에서는 `index.html`을 더블클릭해서 브라우저로 열면 돼요. 설치는 필요 없어요.
 - `…/#lesson`, `…/#homeroom`처럼 주소 뒤에 탭 이름을 붙이면 그 탭이 바로 열려요. 탭을 누르면 주소도 같이 바뀌어서, 탭 하나만 가리키는 링크를 공유할 수 있어요.
 
@@ -45,15 +45,16 @@ node tools/shot.cjs my-app         # 지정한 앱만 다시
 
 - **개인정보가 보이는 앱**은 `apps.js` 항목에 `hide: '선택자'`를 적으면 그 부분을 흐리게 가려서 찍어요. (예: `gisan-vote`는 화면에 교직원 이름이 보여서 `hide: '.pname'`을 써요.)
 - **자동으로 안 찍히는 앱**도 있어요. 로그인이 필요한 앱이나, 구글 앱스 스크립트처럼 화면이 따로 감싸져 있는 앱이에요. 그런 앱은 직접 캡처해서 `shots/<id>.jpg`로 넣고, `apps.js` 항목에 `keepShot: true`를 적어 두세요. 그러면 `--all`로 다시 찍어도 덮어쓰지 않아요. (예: `winter-snack`)
-- 사진을 올리기 전에 이름 같은 개인정보가 보이지 않는지 확인하세요. 저장소가 공개라면 사진도 공개돼요.
+- 사진을 올리기 전에 이름 같은 개인정보가 보이지 않는지 확인하세요. 사진은 사이트에 그대로 공개돼요.
 
-## 인터넷에 올리기 (GitHub Pages)
+## 인터넷에 올리기 (Cloudflare)
 
-1. 저장소의 **Settings → Pages**로 가요.
-2. **Build and deployment**의 Source를 *Deploy from a branch*로 하고, 사이트를 올릴 브랜치와 폴더 `/ (root)`를 골라요.
-3. 잠시 뒤 `https://<계정>.github.io/<저장소 이름>/`에서 열려요.
+주소: **https://gyosil-seorap.kbe950107.workers.dev**
 
-무료 GitHub Pages는 공개 저장소에서만 돼요. 저장소가 공개이면 `apps.js`의 주소와 `shots/`의 사진도 누구나 볼 수 있어요.
+- Cloudflare의 `gyosil-seorap`이 이 GitHub 저장소와 연결돼 있어요. **Production branch(지금은 `claude/app-hub`)에 커밋을 올리면 1~2분 뒤 자동으로 다시 배포돼요.** 따로 할 일은 없어요.
+- 배포 설정은 `wrangler.jsonc`, 사이트에 올리지 않을 파일 목록은 `.assetsignore`에 있어요. 허브에 필요한 파일(`index.html`, `style.css`, `app.js`, `apps.js`, `shots/`, `fonts/`)만 올라가요.
+- 저장소에 새 폴더나 파일을 넣었는데 사이트에 올라가면 안 되는 것이라면 `.assetsignore`에 적어 주세요.
+- 배포 기록과 오류는 Cloudflare 대시보드 → **Workers & Pages → gyosil-seorap → Deployments**에서 볼 수 있어요.
 
 ## 파일 구성
 
@@ -66,3 +67,5 @@ node tools/shot.cjs my-app         # 지정한 앱만 다시
 | `shots/` | 앱 첫 화면 사진 (`<id>.jpg`) |
 | `fonts/nanum-myeongjo/` | 나눔명조 글꼴 400·800 (SIL OFL 1.1, `LICENSE.txt`). 화면에 나오는 글자 조각만 내려받아요. |
 | `tools/shot.cjs` | 첫 화면 사진 자동 촬영 도구 |
+| `wrangler.jsonc` | Cloudflare 배포 설정 |
+| `.assetsignore` | 사이트에 올리지 않을 파일 목록 |
