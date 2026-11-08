@@ -5,7 +5,7 @@
 글자를 고치려면 `cards.html`의 문장만 바꾸고 다시 찍어요.
 
 ```bash
-cd winter-snack-stamp
+cd apps/winter-snack-stamp
 # 글꼴 Jua (SIL OFL): Google Fonts에서 받아요 (저장소에는 넣지 않아요, .gitignore)
 curl -sS -A "Mozilla/4.0" "https://fonts.googleapis.com/css2?family=Jua" | grep -o "https://fonts.gstatic.com[^)]*" | head -1 | xargs curl -sS -o tools/cardnews/Jua.ttf
 node tools/cardnews/render.js          # → poster/cardnews/card-1.png ~ card-7.png

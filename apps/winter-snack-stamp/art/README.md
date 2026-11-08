@@ -5,10 +5,10 @@ ChatGPT로 그린 그림을 [`../ART_PROMPTS.md`](../ART_PROMPTS.md)의 파일 �
 
 ## GitHub 웹에서 올리기
 
-1. https://github.com/bon17/small_app/upload/claude/wonderful-cori-ly4uot/winter-snack-stamp/art 를 열어요.
+1. https://github.com/bon17/small_app/upload/main/apps/winter-snack-stamp/art 를 열어요.
 2. 그림을 **5~10장씩 나눠서** 끌어다 놓아요. 한 번에 너무 많이 올리면 "The file is too large" 오류가 나요.
    - zip으로 묶지 말고 그림 파일 그대로 올려요. 파일 하나는 25MB까지예요.
-3. 아래 **Commit directly to the `claude/wonderful-cori-ly4uot` branch**가 골라져 있는지 보고 **Commit changes**를 눌러요.
+3. 아래 **Commit directly to the `main` branch**가 골라져 있는지 보고 **Commit changes**를 눌러요.
 4. 다음 묶음도 같은 주소에서 다시 올려요.
 
 파일 이름을 못 바꿨어도 괜찮아요. 다음 세션에서 그림을 보고 맞는 이름으로 바꿔요.

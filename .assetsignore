@@ -13,6 +13,5 @@ README.md
 CLAUDE.md
 tools/
 
-# 허브와 상관없는 파일 (다른 앱 폴더, 루트에 올라온 그림)
-capsule-coupon/
-/*.png
+# 각 앱의 소스 폴더 (앱은 각자 자기 주소에 따로 배포해요)
+apps/

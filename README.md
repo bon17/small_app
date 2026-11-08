@@ -4,6 +4,12 @@
 앱마다 첫 화면 사진, 이름, 설명, 주소가 보이고, 카드를 누르면 그 앱이 **새 창**에서 열려요.
 위쪽 탭(`수업` / `학급 및 그 외`)을 누르면 구분별로 따로 보여요.
 
+## 저장소 구조
+
+- **맨 위**: 교실 서랍(허브 사이트) 파일이에요.
+- **`apps/`**: 앱 소스 폴더예요(`capsule-coupon/`, `winter-snack-stamp/` …). 앱마다 폴더 하나이고, 허브 사이트에는 올라가지 않아요.
+- **`CLAUDE.md`**: Claude가 이 저장소에서 따르는 작업 규칙이에요. (앱은 매번 새로 만들고, 이전 앱·브랜치는 신경 쓰지 않아요.)
+
 ## 보는 법
 
 - 인터넷 주소: **https://gyosil-seorap.kbe950107.workers.dev** (배포 방법은 아래)
@@ -51,7 +57,7 @@ node tools/shot.cjs my-app         # 지정한 앱만 다시
 
 주소: **https://gyosil-seorap.kbe950107.workers.dev**
 
-- Cloudflare의 `gyosil-seorap`이 이 GitHub 저장소와 연결돼 있어요. **Production branch(지금은 `claude/app-hub`)에 커밋을 올리면 1~2분 뒤 자동으로 다시 배포돼요.** 따로 할 일은 없어요.
+- Cloudflare의 `gyosil-seorap`이 이 GitHub 저장소와 연결돼 있어요. **Production branch(`main`)에 커밋이 들어오면 1~2분 뒤 자동으로 다시 배포돼요.** 따로 할 일은 없어요.
 - 배포 설정은 `wrangler.jsonc`, 사이트에 올리지 않을 파일 목록은 `.assetsignore`에 있어요. 허브에 필요한 파일(`index.html`, `style.css`, `app.js`, `apps.js`, `shots/`, `fonts/`)만 올라가요.
 - 저장소에 새 폴더나 파일을 넣었는데 사이트에 올라가면 안 되는 것이라면 `.assetsignore`에 적어 주세요.
 - 배포 기록과 오류는 Cloudflare 대시보드 → **Workers & Pages → gyosil-seorap → Deployments**에서 볼 수 있어요.
@@ -67,5 +73,7 @@ node tools/shot.cjs my-app         # 지정한 앱만 다시
 | `shots/` | 앱 첫 화면 사진 (`<id>.jpg`) |
 | `fonts/nanum-myeongjo/` | 나눔명조 글꼴 400·800 (SIL OFL 1.1, `LICENSE.txt`). 화면에 나오는 글자 조각만 내려받아요. |
 | `tools/shot.cjs` | 첫 화면 사진 자동 촬영 도구 |
+| `apps/` | 앱 소스 폴더 (사이트에는 올라가지 않아요) |
+| `CLAUDE.md` | Claude 작업 규칙 |
 | `wrangler.jsonc` | Cloudflare 배포 설정 |
 | `.assetsignore` | 사이트에 올리지 않을 파일 목록 |

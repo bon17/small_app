@@ -1,4 +1,4 @@
-// 서버 규칙 테스트:  node --test winter-snack-stamp/tests
+// 서버 규칙 테스트:  node --test apps/winter-snack-stamp/tests/*.test.js
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');

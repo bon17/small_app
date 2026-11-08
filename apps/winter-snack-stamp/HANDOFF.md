@@ -1,14 +1,15 @@
 # 인계문 — 겨울간식 스탬프 (다음 세션용, 2026-11-05 밤 정리)
 
-> 저장소 `bon17/small_app`, 브랜치 **`claude/wonderful-cori-ly4uot`**, 폴더 `winter-snack-stamp/`.
+> 저장소 `bon17/small_app`, 브랜치 **`main`**, 폴더 `apps/winter-snack-stamp/`.
+> (2026-11-08 저장소 정리: `claude/wonderful-cori-ly4uot` 브랜치의 작업을 `main`에 합치고 폴더를 `apps/` 아래로 옮겼어요.)
 > 사용자는 중학교 담임이에요. **쉬운 우리말로 짧게** 설명해요. 코드 용어는 되도록 쓰지 않아요.
-> 커밋·푸시는 이 브랜치에만 해요. PR은 담임이 말할 때만 만들어요.
+> 커밋·푸시는 세션의 작업 브랜치에 해요. PR은 담임이 말할 때만 만들어요. 저장소 전체 규칙은 맨 위 `CLAUDE.md`를 봐요.
 
 ## 0. 시작할 때
 
 ```bash
-git fetch origin claude/wonderful-cori-ly4uot && git checkout claude/wonderful-cori-ly4uot && git pull
-cd winter-snack-stamp
+git fetch origin main                # 최신 main에서 시작해요
+cd apps/winter-snack-stamp
 node --test tests/*.test.js          # 서버 규칙 테스트 27개가 모두 통과해야 해요
 node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린샷을 찍어요 ("페이지 오류 없음"이 나와야 해요)
 ```
@@ -104,10 +105,10 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 
 1. 코드를 고쳐요. 그림을 바꿨으면 `python3 tools/embed.py`.
 2. `node --test tests/*.test.js`와 `node tests/e2e.js <폴더>`를 돌리고, 바뀐 화면은 스크린샷을 직접 열어 봐요(폰 390px 너비 화면도).
-3. 커밋하고 `git push -u origin claude/wonderful-cori-ly4uot`.
+3. 커밋하고 작업 브랜치에 푸시해요. 담임이 말하면 PR을 만들어 `main`에 합쳐요.
 4. 담임에게 안내해요: 바뀐 파일(`Code.gs`/`Index.html`)의 GitHub 주소를 주고 "복사 버튼(Copy raw file) → Apps Script에 모두 바꿔 붙여 넣기 → **배포 → 배포 관리 → ✏ → 버전: 새 버전 → 배포**". 주소는 그대로예요.
-   - 파일 주소: `https://github.com/bon17/small_app/blob/claude/wonderful-cori-ly4uot/winter-snack-stamp/<파일>`
-   - 그림 올리는 주소: `https://github.com/bon17/small_app/upload/claude/wonderful-cori-ly4uot/winter-snack-stamp/art` (브랜치 이름을 꼭 확인하라고 안내)
+   - 파일 주소: `https://github.com/bon17/small_app/blob/main/apps/winter-snack-stamp/<파일>` (아직 `main`에 안 합쳤으면 `main` 자리에 작업 브랜치 이름)
+   - 그림 올리는 주소: `https://github.com/bon17/small_app/upload/main/apps/winter-snack-stamp/art` (브랜치 이름을 꼭 확인하라고 안내)
 
 ## 8. 남은 일·아이디어
 
