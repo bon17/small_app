@@ -1,0 +1,3 @@
+# 로컬 도구가 만드는 폴더 (저장소에 올리지 않음)
+node_modules/
+.wrangler/

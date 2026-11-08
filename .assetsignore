@@ -1,0 +1,18 @@
+# Cloudflare 에 올리지 않을 파일 (형식은 .gitignore 와 같아요)
+# 허브 사이트에 필요한 것만 올려요: index.html, style.css, app.js, apps.js, shots/, fonts/
+
+# 저장소·배포 도구용 파일
+.git
+.github
+.assetsignore
+.gitignore
+wrangler.jsonc
+node_modules/
+.wrangler/
+README.md
+CLAUDE.md
+tools/
+
+# 허브와 상관없는 파일 (다른 앱 폴더, 루트에 올라온 그림)
+capsule-coupon/
+/*.png
