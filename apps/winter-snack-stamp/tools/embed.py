@@ -22,7 +22,7 @@ INDEX = ROOT / 'Index.html'
 QR = ROOT / 'vendor' / 'qrcode-generator-1.4.4.js'
 ART = ROOT / 'art'
 MAX_PX = 512
-BIG_PX = {'logo': 900}  # 로고는 패드 잠금 화면에 크게 나와서 더 크게 넣어요
+BIG_PX = {'logo': 900, 'teacher-stamp': 360}  # 로고는 패드 잠금 화면에 크게 나와서 더 크게, 도장은 1.3cm라 작게 넣어요
 EXTS = ['.png', '.webp', '.jpg', '.jpeg']
 MIME = {'.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
 

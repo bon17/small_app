@@ -268,18 +268,51 @@ async function main() {
     await adm.waitForTimeout(300);
     await shot(adm, n);
   }
+  // 교환권 출력: 재출력 버튼·표시가 없고, 이미 출력한 것도 모두 골라 몇 번이든 다시 뽑아요.
+  // 인쇄 창이 뜰 때 주아 글꼴의 '붕'·'빵' 조각과 도장 그림이 이미 받아져 있어야 해요.
+  await adm.evaluate(() => {
+    window.__prints = [];
+    window.print = () => {
+      const root = document.getElementById('printRoot');
+      const imgs = [...root.querySelectorAll('img.tstamp')];
+      window.__prints.push({ html: root.innerHTML, fontOk: document.fonts.check('16px Jua', '붕어빵호빵') && document.fonts.check('800 16px "Nanum Gothic"', '붕어빵호빵'), stamps: imgs.length, stampsLoaded: imgs.every((i) => i.complete && i.naturalWidth > 0) });
+    };
+  });
+  await adm.click('[data-act="admTab"][data-t="tickets"]');
+  await adm.waitForSelector('[data-act="admPrintSel"]');
+  if (await adm.$('[data-act="admPrintSel"][data-re]')) throw new Error('재출력 버튼은 없어야 해요');
+  for (let round = 1; round <= 2; round++) {
+    await adm.click('[data-act="admTkFilter"][data-f="all"]');
+    await adm.waitForSelector('[data-act="admTkAll"]');
+    await adm.click('[data-act="admTkAll"]');
+    const picked = await adm.$$eval('[data-act="admTkSel"]', (bs) => bs.length && bs.every((b) => b.checked));
+    if (!picked) throw new Error('모두 고르기를 누르면 모든 교환권이 골라져야 해요');
+    await adm.click('[data-act="admPrintSel"]');
+    await adm.waitForFunction((n) => window.__prints.length >= n, round, { timeout: 8000 });
+  }
+  const prints = await adm.evaluate(() => window.__prints);
+  prints.forEach((p, i) => {
+    if (!p.fontOk) throw new Error((i + 1) + '번째 출력: 인쇄 창이 뜰 때 붕어빵 글꼴이 아직 안 받아졌어요');
+    if (!p.stamps || !p.stampsLoaded) throw new Error((i + 1) + '번째 출력: 선생님 확인 도장이 없거나 아직 안 받아졌어요');
+    if (/재출력/.test(p.html)) throw new Error((i + 1) + '번째 출력: 교환권에 재출력 표시가 있으면 안 돼요');
+  });
+  await adm.waitForTimeout(800);
+  const printedTwice = app.ok('adminState', {}, { token: admin }).tickets.every((t) => t.printed === 2);
+  if (!printedTwice) throw new Error('이미 출력한 교환권도 다시 출력돼야 해요 (출력 횟수 2번)');
+  await shot(adm, '21b-admin-tickets-printed');
   // 교환권 인쇄 모양 (A4)
   const print = await open('home', '', { width: 794, height: 1123 });
-  await print.evaluate(() => {
+  await print.evaluate(async () => {
     const list = [
       { no: '붕-001', student: 2, name: '이바다', coupon: 'bung', flavor: '슈크림', validUntil: '2026-11-27' },
-      { no: '붕-002', student: 7, name: '조은비', coupon: 'bung', flavor: '팥', validUntil: '2026-11-27', reprint: true },
+      { no: '붕-002', student: 7, name: '조은비', coupon: 'bung', flavor: '팥', validUntil: '2026-11-27' },
       { no: '호-001', student: 11, name: '한지우', coupon: 'hop', flavor: '피자', validUntil: '2026-11-27' },
       { no: '호-002', student: 12, name: '오세린', coupon: 'hop', flavor: '단팥', validUntil: '2026-11-27' },
       { no: '호-003', student: 13, name: '서민재', coupon: 'hop', flavor: '야채', validUntil: '2026-11-27' },
       { no: '호-004', student: 14, name: '남궁별', coupon: 'hop', flavor: '고구마', validUntil: '2026-11-27' },
     ];
     document.body.innerHTML = '<div id="printRoot" style="display:block">' + Tk.sheets(list, 'l', '2학년 3반') + Tk.sheets(list, 'm', '2학년 3반') + '</div>';
+    await printReady(document.getElementById('printRoot'));
     Tk.fit(document.body);
   });
   await shot(print, '30-print-tickets', true);

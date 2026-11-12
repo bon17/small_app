@@ -23,6 +23,7 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 - 그림: 먼저 필요한 **22장 모두** 앱에 들어갔어요(아래 6장). **로고 `logo.png`도 11/5 밤에 받아서 넣었어요**([ART_PROMPTS.md](ART_PROMPTS.md) L, 900px로 넣어요).
 - 교실 포스터: [`poster/poster-A4.pdf`](poster/poster-A4.pdf) (앞장 + 규칙 뒷장). 11/5 밤에 **⚠ 주의 칸을 더한 판** [`poster/poster-A4-warning.pdf`](poster/poster-A4-warning.pdf)도 만들었어요(만드는 법: [tools/poster/README.md](tools/poster/README.md)).
 - **11/5 밤 바꾼 것** (담임 요청): 교실 패드 👥 반 전체 ＋ 전원 주기 / － 전원 빼기, 패드 잠금 화면은 저금통 빼고 로고, 학생은 처음에 **이름 + 코드**로 로그인(로고 있는 로그인 화면), **학생 공용 주소 `?v=stu`**.
+- **11/12 바꾼 것** (담임 요청, 활동 1주차): 인쇄할 때 '붕'·'빵' 글꼴이 깨지던 것 고침, 교환권 "선생님 확인" 칸에 보은쌤인 도장, "재출력" 표시 없애고 출력한 것도 골라서 다시 뽑기(모두 고르기 칸). **`Index.html`만 바뀌었어요**(`Code.gs`는 그대로). 담임이 `Index.html`을 다시 붙여 넣고 새 버전으로 배포했는지 확인해요.
 - **확인이 필요한 것**: 담임이 11/5 밤 `Code.gs`·`Index.html`을 다시 붙여 넣고 새 버전으로 배포했는지. 이 배포 뒤에는 이미 들어와 있던 학생 기기도 **이름을 한 번 더** 넣어요(코드는 남아 있어요).
   - QR 카드는 다시 인쇄하지 않아도 돼요(주소 모양 그대로). 예전 QR 카드를 확인했는지는 아직 못 들었어요.
 
@@ -76,7 +77,8 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 - 학생·담임 관리는 로그아웃 전까지 로그인 유지. 교실 패드는 잠김 유지(학생이 스스로 스탬프를 주지 못하게)
 - 카카오톡 안 브라우저로 열리면 "🌐 브라우저로 열기" 안내가 떠요(`InApp`, `kakaotalk://web/openExternal?url=`). 구글 틀은 누를 때만 바깥 페이지를 움직일 수 있어서(sandbox에 `allow-top-navigation-by-user-activation`만 있음, 11/5 확인) **저절로 옮기기는 안 돼요**. "그냥 카카오톡에서 볼게요"는 그 탭에서만 기억해요
 - QR 카드 A4 한 장에 16명(가로 4 × 세로 4), 카드에 코드 4자리 표시
-- 교환권은 담임이 준 "쿠폰 출력기" 모양(크게 A4 6장 / 작게 A4 12장). "선생님 확인" 칸은 빈칸(도장)
+- 교환권은 담임이 준 "쿠폰 출력기" 모양(크게 A4 6장 / 작게 A4 12장). "선생님 확인" 칸에 **보은쌤인 도장 그림**이 찍혀 나와요(11/12, `art/teacher-stamp.png`, 원본은 `bon17/coupon`의 `images/stamp.png`)
+- **"재출력" 표시는 안 해요**(11/12). 이미 출력한 교환권도 골라서 몇 번이든 똑같이 다시 뽑아요(교환권 탭의 "고른 것 출력", 표 맨 위 칸으로 모두 고르기). 출력 횟수만 "출력" 칸에 남아요
 - 미리캔버스는 안 써요. 포장마차 배경(천막·눈 덮인 산)은 앱이 그려요
 - 굽기·찌기 그림은 5단계가 다 있을 때만 써요(일부만 있으면 앱 그림)
 
@@ -90,15 +92,17 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 - **Apps Script 응답은 1~3초 걸려요.** 학생 쿠폰 찍기는 누르면 바로 화면에 붙이고 저장은 뒤에서 묶어 보내요(`Stu.stamp`·`flushStamps`·`stampIdle`). 맛 고르기·기부·칭찬은 찍기 저장이 끝난 뒤에 해요. 교실 패드도 비슷하게 대기열로 보내요.
 - **그림 data: 주소는 커요(장당 약 50KB).** 화면에 쓸 때는 `Art.url`로 blob: 주소로 한 번만 바꿔요(실제 Apps Script 화면에서 blob 그림이 뜨는 것 확인함).
 - 학생 서버 동작(찍기·맛·기부·칭찬·규칙)은 시트를 다시 읽지 않고 `append_(rows, db)`로 응답해요. 응답이 다시 읽은 화면과 같은지 테스트가 확인해요.
+- **인쇄 화면은 평소에 숨어 있어서 구글 글꼴 조각을 아직 안 받았을 수 있어요.** 주아·나눔고딕은 글자 묶음별로 나눠 받는데, 받기 전에 인쇄하면 '붕'·'빵'처럼 드문 글자만 다른 글꼴로 나와요(11/12 담임이 겪음). 그래서 `printHtml`이 `printReady`로 인쇄할 글자의 글꼴과 그림을 먼저 받고(최대 5초) 인쇄 창을 띄워요. 화면 테스트가 인쇄 창이 뜰 때 글꼴·도장이 받아졌는지 확인해요.
 - 폰 화면: 천막은 고정하지 않아요(고정하면 내릴 때 제목과 겹쳐요). 글자는 `word-break:keep-all`.
 - 휴대폰 맨 위 "Google Apps Script 사용자가 만들었습니다" 파란 줄은 구글이 넣는 거라 없앨 수 없어요.
 
 ## 6. 그림
 
-`art/`에 34장. 앱에 들어간 것(23장): `logo`, `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy`·`-batter`·`-bag`.
+`art/`에 35장. 앱에 들어간 것(24장): `logo`, `teacher-stamp`, `sticker-bung`·`-hop`·`-burnt`, `bake-bung-1~5`, `steam-hop-1~5`, `flavor-bung-choux`·`-pat`, `flavor-hop-pizza`·`-danpat`·`-veggie`·`-goguma`, `prop-piggy`·`-batter`·`-bag`.
 `art/`에만 있는 것(앱에서 아직 안 씀): 캐릭터 `char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad`, `prop-mold`·`-steamer`·`-letter`, `bg-stall-wide`·`-tall`.
 `embed.py`는 앱 코드가 부르지 않는 그림을 건너뛰어요. 새 그림을 쓰려면 먼저 `Art` 안에서 `this.img('이름', 기본그림, '설명')`으로 부르고 `python3 tools/embed.py`를 돌려요.
 아직 안 그린 것: `char-bung-burnt`·`-gold`. 담임이 "황금 붕어빵·행운 스탬프 그림이 없어도 되냐"고 물어서 **없어도 된다**고 답했어요(효과 화면이 ✨🍀 반짝이와 큰 글자로 떠요). 캐릭터를 효과 화면에 넣을지는 담임과 정하지 않았어요.
+`teacher-stamp.png`: 11/12 넣었어요(보은쌤인 도장, 교환권 "선생님 확인" 칸). `bon17/coupon`의 `images/stamp.png`에서 빈 가장자리를 잘라 640px로 줄인 것. 앱에는 360px로 넣어요(`embed.py`의 `BIG_PX`). 앱은 `Art.stamp(교환권 번호)`로 불러요.
 `logo.png`: 들어갔어요(포장마차 수레 + "우리 반 겨울 간식 / 포장마차" 글자). 앱은 `Art.logo()`로 불러요(그림이 없으면 앱이 그린 포장마차 + 글자).
 
 ## 7. 고칠 때 순서
