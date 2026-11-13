@@ -18,6 +18,7 @@ function colIndex(letters) {
 class Range {
   constructor(sheet, row, col, rows, cols) { Object.assign(this, { sheet, row, col, rows, cols }); }
   getValues() {
+    this.sheet.reads = (this.sheet.reads || 0) + 1; // 시트를 몇 번 읽었는지 세요 (속도 테스트용)
     const out = [];
     for (let r = 0; r < this.rows; r++) {
       const line = [];

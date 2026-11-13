@@ -9,7 +9,8 @@ Apps Script에는 Code.gs와 Index.html 두 파일만 붙여 넣으면 되도록
 - art/ 폴더의 그림 (PNG·JPG·WebP, ChatGPT로 그린 그림) → ART 표시 사이.
   파일 이름이 그림 이름이에요 (예: sticker-bung.png). 같은 이름이 여러 개면 PNG를 먼저 써요.
   앱이 아직 쓰지 않는 그림(예: char-*)은 art/에만 두고 넣지 않아요. Index.html이 무거워지지 않게요.
-  Pillow가 있으면 512px WebP로 줄여서 넣고(로고는 900px), 없으면 파일 그대로 넣어요.
+  Pillow가 있으면 화면에 나오는 크기에 맞춰 WebP로 줄여서 넣고(px_for 참고), 없으면 파일 그대로 넣어요.
+  Index.html이 가벼울수록 앱이 빨리 열려요(11/13: 그림 1.26MB → 줄임).
 """
 import base64
 import io
@@ -21,8 +22,20 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 INDEX = ROOT / 'Index.html'
 QR = ROOT / 'vendor' / 'qrcode-generator-1.4.4.js'
 ART = ROOT / 'art'
-MAX_PX = 512
-BIG_PX = {'logo': 900, 'teacher-stamp': 360}  # 로고는 패드 잠금 화면에 크게 나와서 더 크게, 도장은 1.3cm라 작게 넣어요
+MAX_PX = 512  # 굽기·찌기 단계 그림 (화면 너비 300px까지)
+QUALITY = 80
+# 화면(또는 인쇄)에 나오는 크기의 2~3배면 충분해요. 크면 앱이 늦게 열려요.
+BIG_PX = {'logo': 720, 'teacher-stamp': 300}  # 로고는 최대 360px로 보여요, 도장은 인쇄 1.3cm
+PREFIX_PX = {'sticker-': 256, 'flavor-': 384, 'prop-': 384}  # 쿠폰 칸 ~50px, 맛 120px·교환권 인쇄 2.8cm, 소품 ~180px
+
+
+def px_for(key):
+    if key in BIG_PX:
+        return BIG_PX[key]
+    for prefix, px in PREFIX_PX.items():
+        if key.startswith(prefix):
+            return px
+    return MAX_PX
 EXTS = ['.png', '.webp', '.jpg', '.jpeg']
 MIME = {'.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
 
@@ -37,7 +50,7 @@ def encode_image(path, max_px=MAX_PX):
         im = im.convert('RGBA')
         im.thumbnail((max_px, max_px))
         buf = io.BytesIO()
-        im.save(buf, 'WEBP', quality=86, method=6)
+        im.save(buf, 'WEBP', quality=QUALITY, method=6)
     return 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -83,7 +96,7 @@ def main():
                 print('건너뜀 (%s1~5가 다 모이면 넣어요, 지금 %d장):' % (prefix, len(have)), files.pop(k).name)
     for key in sorted(files):
         p = files[key]
-        entries.append("  '%s': '%s'," % (key, encode_image(p, BIG_PX.get(key, MAX_PX))))
+        entries.append("  '%s': '%s'," % (key, encode_image(p, px_for(key))))
         print('그림 넣음:', p.name)
     html = replace_between(html, '/*ART:BEGIN*/', '/*ART:END*/', '\n'.join(entries))
     INDEX.write_text(html, encoding='utf-8')

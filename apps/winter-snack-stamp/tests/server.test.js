@@ -417,6 +417,44 @@ test('학생 동작(찍기·맛 고르기·기부·칭찬) 응답은 시트를 �
   same(c.student(2, 'rulesRead', {}), 2);
 });
 
+test('교실 패드·담임 동작은 기록 시트를 한 번만 읽고, 응답은 시트를 다시 읽은 화면과 똑같아요 (빠르게)', () => {
+  const c = setupClass({ settings: { cells: { bung: 5, hop: 45 } } });
+  c.stock([{ coupon: 'bung', flavor: '팥', stocked: 3 }]);
+  const logSheet = c.app.ss.getSheetByName('기록');
+  const strip = (v) => JSON.parse(JSON.stringify(v), (k, x) => (k === 'serverNow' ? undefined : x));
+  const check = (label, fn, fresh) => {
+    logSheet.reads = 0;
+    const got = fn();
+    assert.ok(logSheet.reads <= 1, label + ': 기록 시트를 ' + logSheet.reads + '번 읽었어요 (한 번이면 돼요)');
+    assert.deepEqual(strip(got), strip(fresh()), label + ': 응답이 다시 읽은 화면과 달라요');
+    return got;
+  };
+  const pad = () => c.app.ok('padState', {}, { token: c.teacher });
+  const adm = () => c.adminView();
+  const T = { token: c.teacher }, A = { token: c.admin };
+  const L = check('수업 시작', () => c.app.ok('startLesson', { subject: '수학', period: 2, actionId: aid() }, T), pad).lesson.id;
+  const r = check('스탬프 주기', () => c.app.ok('award', { lesson: L, tool: 'extra', students: [1, 2], amount: 9, actionId: aid() }, T).view, pad);
+  assert.equal(c.me(1).unstamped, 9);
+  const ap = aid();
+  check('빼기', () => c.app.ok('penalty', { lesson: L, students: [3], amount: 1, reason: '잠', actionId: ap }, T).view, pad);
+  check('되돌리기', () => c.app.ok('undo', { target: ap, lesson: L, actionId: aid() }, T), pad);
+  const end = check('수업 마치기', () => c.app.ok('endLesson', { lesson: L, actionId: aid() }, T).view, pad);
+  assert.equal(end.lesson, null);
+  c.student(1, 'stamp', { coupon: 'bung', n: 5 });
+  c.student(1, 'chooseFlavor', { coupon: 'bung', flavor: '팥' });
+  const no = c.adminView().tickets[0].no;
+  check('출력 표시', () => c.app.ok('markPrinted', { tickets: [no], actionId: aid() }, A), adm);
+  check('교환 완료', () => c.app.ok('exchange', { ticket: no, actionId: aid() }, A), adm);
+  check('직접 더하기', () => c.app.ok('adjust', { no: 2, amount: 3, reason: '봉사', actionId: aid() }, A), adm);
+  const id = c.adminView().log.find((x) => x.type === '조정').id;
+  check('기록 취소', () => c.app.ok('cancelEvent', { id }, A), adm);
+  // 로그인하면서 화면도 같이 받아요 (서버 요청 한 번)
+  const pl = c.app.ok('padLogin', { pin: '1234' });
+  assert.ok(pl.token && pl.view && pl.view.students.length === 5);
+  const al = c.app.ok('adminLogin', { pin: '0000' });
+  assert.ok(al.token && al.view && al.view.students.length === 5);
+});
+
 test('웹앱 밖에서 구글이 열리지 않는 /exec 주소(편집용 번호)를 줘도 메뉴·학생 링크는 웹앱이 열릴 때 본 주소를 써요', () => {
   const app = loadApp();
   const good = app.web.url; // 웹앱이 열릴 때(doGet) 구글이 알려 주는 바른 주소

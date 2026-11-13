@@ -10,7 +10,7 @@
 ```bash
 git fetch origin main                # 최신 main에서 시작해요
 cd apps/winter-snack-stamp
-node --test tests/*.test.js          # 서버 규칙 테스트 27개가 모두 통과해야 해요
+node --test tests/*.test.js          # 서버 규칙 테스트 28개가 모두 통과해야 해요
 node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린샷을 찍어요 ("페이지 오류 없음"이 나와야 해요)
 ```
 
@@ -20,9 +20,10 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 
 - **실제로 쓰는 중이에요.** 담임이 개인 구글 시트에 Apps Script로 설치·배포했고, 교실 패드·담임 관리·학생 화면이 열리는 것을 확인했어요. 명단 31명이 들어가 있어요.
 - 활동 기간: **2026-11-09(월) ~ 12-04(금), 4주**.
-- 그림: 먼저 필요한 **22장 모두** 앱에 들어갔어요(아래 6장). **로고 `logo.png`도 11/5 밤에 받아서 넣었어요**([ART_PROMPTS.md](ART_PROMPTS.md) L, 900px로 넣어요).
+- 그림: 먼저 필요한 **22장 모두** 앱에 들어갔어요(아래 6장). **로고 `logo.png`도 11/5 밤에 받아서 넣었어요**([ART_PROMPTS.md](ART_PROMPTS.md) L, 720px로 넣어요).
 - 교실 포스터: [`poster/poster-A4.pdf`](poster/poster-A4.pdf) (앞장 + 규칙 뒷장). 11/5 밤에 **⚠ 주의 칸을 더한 판** [`poster/poster-A4-warning.pdf`](poster/poster-A4-warning.pdf)도 만들었어요(만드는 법: [tools/poster/README.md](tools/poster/README.md)).
 - **11/5 밤 바꾼 것** (담임 요청): 교실 패드 👥 반 전체 ＋ 전원 주기 / － 전원 빼기, 패드 잠금 화면은 저금통 빼고 로고, 학생은 처음에 **이름 + 코드**로 로그인(로고 있는 로그인 화면), **학생 공용 주소 `?v=stu`**.
+- **11/13 바꾼 것** (담임: "전반적으로 앱 들어가면 느려요, 누르면 한참 있다가 넘어가요"): 5장 "속도" 참고. **`Code.gs`와 `Index.html` 둘 다 바뀌었어요.** 담임이 둘 다 다시 붙여 넣고 새 버전으로 배포했는지 확인해요. (`Index.html`만 바꿔도 돌아가긴 해요. 로그인할 때 서버를 두 번 부르는 것만 그대로예요.)
 - **11/12 바꾼 것** (담임 요청, 활동 1주차): 인쇄할 때 '붕'·'빵' 글꼴이 깨지던 것 고침, 교환권 "선생님 확인" 칸에 보은쌤인 도장, "재출력" 표시 없애고 출력한 것도 골라서 다시 뽑기(모두 고르기 칸). **`Index.html`만 바뀌었어요**(`Code.gs`는 그대로). 담임이 `Index.html`을 다시 붙여 넣고 새 버전으로 배포했는지 확인해요.
 - **확인이 필요한 것**: 담임이 11/5 밤 `Code.gs`·`Index.html`을 다시 붙여 넣고 새 버전으로 배포했는지. 이 배포 뒤에는 이미 들어와 있던 학생 기기도 **이름을 한 번 더** 넣어요(코드는 남아 있어요).
   - QR 카드는 다시 인쇄하지 않아도 돼요(주소 모양 그대로). 예전 QR 카드를 확인했는지는 아직 못 들었어요.
@@ -52,10 +53,11 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 | `appsscript.json` | 시간대 Asia/Seoul, 웹앱(나로 실행, 모든 사용자) |
 | `art/` | 담임이 ChatGPT로 그린 그림 원본(PNG). [art/README.md](art/README.md)에 올리는 방법 |
 | `ART_PROMPTS.md` | 그림 프롬프트와 파일 이름 |
-| `tools/embed.py` | QR 라이브러리와 `art/` 그림을 `Index.html`에 넣어요(512px WebP, 로고만 900px) |
+| `tools/embed.py` | QR 라이브러리와 `art/` 그림을 `Index.html`에 넣어요. 그림은 화면에 나오는 크기에 맞춰 WebP로 줄여요(`px_for`: 스티커 256, 맛·소품 384, 굽기 단계 512, 로고 720, 도장 300px, 품질 80) |
 | `tools/poster/` | 주의 칸 포스터를 만드는 도구(README에 순서) |
 | `tests/gas-mock.js` | Apps Script 흉내(시트·캐시·속성·HtmlService). **진짜처럼 HTML의 `/* 주석 */`을 지워요** |
-| `tests/server.test.js` | 서버 규칙 테스트 27개 |
+| `tests/server.test.js` | 서버 규칙 테스트 28개 |
+| `tests/speed.js` | 속도 재기. 느린 서버(요청 1.7초)·느린 페이지(2.5초)를 흉내 내고, 누른 뒤 다음 화면까지 몇 초인지 찍어요(`SHOTS=폴더`면 기다리는 동안 화면도 찍어요) |
 | `tests/e2e.js` | 화면 테스트 + 스크린샷(키보드 PIN, 전원 주기·빼기, 이름+코드 로그인·QR·공용 주소, 로그인 유지, 느린 서버에서 바로 찍히기 등) |
 | `poster/` | 교실 포스터 PDF·PNG·JPG |
 | `PLAN.md` | 기획 전체(규칙, 화면, 숫자). 14장에 구현 상태 |
@@ -89,6 +91,13 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 - **담임이 GitHub 웹으로 올린 파일은 엉뚱한 곳에 갈 수 있어요.** 11/5에 그림 30장이 `art/`, 저장소 맨 위, **다른 브랜치**(`claude/loving-carson-2r4y16`)로 나뉘어 들어갔어요. 찾을 때는 저장소 전체와 모든 브랜치를 봐요:
   `git fetch origin '+refs/heads/*:refs/remotes/origin/*' && git log --all --author=bon17 --name-status`
 - **CacheService는 6시간이면 사라져요.** 그래서 담임 로그인은 스크립트 속성 `adminTokens`(기기 10개까지)에도 적어요. 관리자 PIN을 바꾸면 다른 담임 기기는 로그아웃돼요.
+- **속도 (11/13 실제 웹앱에서 잼): 서버 요청 한 번 1.3~2.2초, 페이지 열기(약 1MB) 1.6~2.9초.** 시트 읽기보다 요청 횟수가 훨씬 커요. 그래서:
+  - 한 번 누를 때 서버를 **연달아 두 번 부르지 않아요.** `padLogin`·`adminLogin`은 화면(`view`)도 같이 돌려줘요.
+  - 서버를 기다리기 전에 화면부터 그려요. 교실 패드 잠금 화면은 바로 뜨고(학급 이름·MVP는 뒤에서 `loadPub`), 기다릴 때는 빈 화면 대신 `loading()` 카드, 버튼은 "확인 중…"·"수업을 여는 중…".
+  - **지난 화면을 기기에 저장**해서 다음에 열 때 바로 보여 주고, 서버 답이 오면 바꿔요: 학생 `wss:stuView:<코드>`, 담임 `wss:adminView`(위에 "⏳ 새로 불러오는 중…"). 로그아웃·코드 틀림·AUTH 때 지워요. 저장된 것을 못 그리면 버리고 새로 받아요. 담임이 그 사이 입력칸에 쓰고 있으면 화면을 덮지 않고 알림만 띄워요.
+  - 첫 화면의 교실 패드·담임 관리 버튼은 웹앱을 새로 열지 않고 같은 화면에서 바꿔요(`ACTS.homeGo`, 주소는 `google.script.history.push`로 `?v=`를 맞춰요).
+  - 서버 동작은 읽어 둔 `db`에 줄을 더해서(`append_(rows, db)`, 취소는 `cancelRows_(pred, db)`) 응답해요. 시트를 다시 읽지 않아요. 테스트가 "기록 시트를 한 번만 읽는지, 응답이 다시 읽은 화면과 같은지" 확인해요.
+  - 그림이 `Index.html` 무게의 대부분이에요. 새 그림은 화면에 나오는 크기에 맞춰 넣어요(`embed.py`의 `px_for`). 11/13에 1.47MB → 1.03MB.
 - **Apps Script 응답은 1~3초 걸려요.** 학생 쿠폰 찍기는 누르면 바로 화면에 붙이고 저장은 뒤에서 묶어 보내요(`Stu.stamp`·`flushStamps`·`stampIdle`). 맛 고르기·기부·칭찬은 찍기 저장이 끝난 뒤에 해요. 교실 패드도 비슷하게 대기열로 보내요.
 - **그림 data: 주소는 커요(장당 약 50KB).** 화면에 쓸 때는 `Art.url`로 blob: 주소로 한 번만 바꿔요(실제 Apps Script 화면에서 blob 그림이 뜨는 것 확인함).
 - 학생 서버 동작(찍기·맛·기부·칭찬·규칙)은 시트를 다시 읽지 않고 `append_(rows, db)`로 응답해요. 응답이 다시 읽은 화면과 같은지 테스트가 확인해요.
@@ -102,7 +111,7 @@ node tests/e2e.js /tmp/shots         # Chromium으로 화면을 띄워 스크린
 `art/`에만 있는 것(앱에서 아직 안 씀): 캐릭터 `char-bung-basic`·`-happy`·`-sad`, `char-hop-basic`·`-happy`·`-sad`, `prop-mold`·`-steamer`·`-letter`, `bg-stall-wide`·`-tall`.
 `embed.py`는 앱 코드가 부르지 않는 그림을 건너뛰어요. 새 그림을 쓰려면 먼저 `Art` 안에서 `this.img('이름', 기본그림, '설명')`으로 부르고 `python3 tools/embed.py`를 돌려요.
 아직 안 그린 것: `char-bung-burnt`·`-gold`. 담임이 "황금 붕어빵·행운 스탬프 그림이 없어도 되냐"고 물어서 **없어도 된다**고 답했어요(효과 화면이 ✨🍀 반짝이와 큰 글자로 떠요). 캐릭터를 효과 화면에 넣을지는 담임과 정하지 않았어요.
-`teacher-stamp.png`: 11/12 넣었어요(보은쌤인 도장, 교환권 "선생님 확인" 칸). `bon17/coupon`의 `images/stamp.png`에서 빈 가장자리를 잘라 640px로 줄인 것. 앱에는 360px로 넣어요(`embed.py`의 `BIG_PX`). 앱은 `Art.stamp(교환권 번호)`로 불러요.
+`teacher-stamp.png`: 11/12 넣었어요(보은쌤인 도장, 교환권 "선생님 확인" 칸). `bon17/coupon`의 `images/stamp.png`에서 빈 가장자리를 잘라 640px로 줄인 것. 앱에는 300px로 넣어요(`embed.py`의 `BIG_PX`). 앱은 `Art.stamp(교환권 번호)`로 불러요.
 `logo.png`: 들어갔어요(포장마차 수레 + "우리 반 겨울 간식 / 포장마차" 글자). 앱은 `Art.logo()`로 불러요(그림이 없으면 앱이 그린 포장마차 + 글자).
 
 ## 7. 고칠 때 순서

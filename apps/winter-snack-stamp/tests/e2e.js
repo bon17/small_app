@@ -195,6 +195,8 @@ async function main() {
   await s2.fill('#stuCode', codes[2]);
   await s2.press('#stuCode', 'Enter');
   await s2.waitForSelector('[data-act="stuTicket"]');
+  // 다음에 열 때 서버를 기다리지 않고 바로 보여 주려고 내 화면을 이 기기에 저장해요.
+  if (!(await s2.evaluate((c) => localStorage.getItem('wss:stuView:' + c), codes[2]))) throw new Error('학생 화면을 이 기기에 저장해야 해요');
   await s2.waitForTimeout(600);
   await s2.click('[data-act="stuTicket"]');
   await s2.waitForTimeout(500);
@@ -213,6 +215,18 @@ async function main() {
   await s2.goto('https://app.test/exec', { waitUntil: 'load' });
   await s2.waitForSelector('#stuName');
   if ((await s2.inputValue('#stuCode')) !== codes[2]) throw new Error('예전 기기는 코드가 미리 들어가 있어야 해요');
+  // 첫 화면의 선생님 버튼은 웹앱을 새로 열지 않고 같은 화면에서 교실 패드·담임 관리로 바꿔요(빨라요).
+  const hm = await open('home', '', { width: 1180, height: 820 });
+  await hm.waitForSelector('[data-act="homeGo"][data-v="pad"]');
+  await hm.evaluate(() => { window.__samePage = true; });
+  await hm.click('[data-act="homeGo"][data-v="pad"]');
+  await hm.waitForSelector('.lock', { timeout: 3000 });
+  if (!(await hm.evaluate(() => window.__samePage))) throw new Error('교실 패드 버튼이 웹앱을 새로 열면 안 돼요');
+  const hm2 = await open('home', '', { width: 1180, height: 820 });
+  await hm2.evaluate(() => { window.__samePage = true; });
+  await hm2.click('[data-act="homeGo"][data-v="admin"]');
+  await hm2.waitForSelector('#admPin', { timeout: 3000 });
+  if (!(await hm2.evaluate(() => window.__samePage))) throw new Error('담임 관리 버튼이 웹앱을 새로 열면 안 돼요');
   // 학생 공용 주소(?v=stu): 선생님 버튼 없이 로그인만 보여요.
   const sp = await open('home', '', phone);
   await sp.goto('https://app.test/exec?v=stu', { waitUntil: 'load' });
@@ -260,6 +274,7 @@ async function main() {
   await adm.waitForSelector('.atabs');
   // 담임 관리는 창을 다시 열어도(새로 고침) 로그아웃 전까지 PIN을 다시 묻지 않아요.
   if (!(await adm.evaluate(() => localStorage.getItem('wss:admin')))) throw new Error('담임 로그인이 창을 닫아도 남도록 localStorage에 있어야 해요');
+  if (!(await adm.evaluate(() => localStorage.getItem('wss:adminView')))) throw new Error('담임 장부를 다음에 바로 보여 주려고 이 기기에 저장해야 해요');
   await adm.reload({ waitUntil: 'load' });
   await adm.waitForSelector('.atabs', { timeout: 5000 });
   await shot(adm, '20-admin-status');

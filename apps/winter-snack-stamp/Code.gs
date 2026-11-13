@@ -123,7 +123,7 @@ const HANDLERS = {
     const v = padView_(load_());
     return { className: v.className, todayMvp: v.todayMvp };
   },
-  padLogin: function (req, p) { return { token: login_('teacher', p.pin) }; },
+  padLogin: function (req, p) { const token = login_('teacher', p.pin); return { token: token, view: padView_(load_()) }; },
   logout: function (req) { logout_(req.token); return true; },
   padState: function (req) { auth_(req.token, 'teacher'); return padView_(load_()); },
   startLesson: function (req, p) {
@@ -140,9 +140,9 @@ const HANDLERS = {
         if (act) rows.push(row_(T.END, '', '', { lesson: act.id, auto: true }, p.actionId));
         const id = 'L' + Utilities.formatDate(new Date(), TZ, 'yyMMddHHmmss') + rand_(3);
         rows.push(row_(T.START, '', '', { lesson: id, period: Number(p.period) || 0, subject: subject, date: today_() }, p.actionId));
-        append_(rows);
+        append_(rows, db);
       }
-      return padView_(load_());
+      return padView_(db);
     });
   },
   award: function (req, p) { auth_(req.token, 'teacher'); return withLock_(function () { return award_(p); }); },
@@ -150,8 +150,9 @@ const HANDLERS = {
   undo: function (req, p) {
     auth_(req.token, 'teacher');
     return withLock_(function () {
-      cancelRows_(function (r) { return r.action === p.target && r.type !== T.START && r.type !== T.END; });
-      return padView_(load_());
+      const db = load_();
+      cancelRows_(function (r) { return r.action === p.target && r.type !== T.START && r.type !== T.END; }, db);
+      return padView_(db);
     });
   },
   endLesson: function (req, p) {
@@ -161,13 +162,13 @@ const HANDLERS = {
       const st = compute_(db);
       const L = st.lessons[p.lesson];
       if (!L) throw err_('LESSON', '수업을 찾을 수 없어요.');
-      if (!L.ended && !db.done[p.actionId]) append_([row_(T.END, '', '', { lesson: L.id }, p.actionId)]);
-      return { summary: lessonSummary_(compute_(load_()), p.lesson), view: padView_(load_()) };
+      if (!L.ended && !db.done[p.actionId]) append_([row_(T.END, '', '', { lesson: L.id }, p.actionId)], db);
+      return { summary: lessonSummary_(compute_(db), p.lesson), view: padView_(db) };
     });
   },
 
   /* 담임 관리 */
-  adminLogin: function (req, p) { return { token: login_('admin', p.pin) }; },
+  adminLogin: function (req, p) { const token = login_('admin', p.pin); return { token: token, view: adminView_(load_()) }; },
   adminState: function (req) { auth_(req.token, 'admin'); return adminView_(load_()); },
   saveRoster: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveRoster_(p.rows || []); return adminView_(load_()); }); },
   saveSettings: function (req, p) {
@@ -191,25 +192,26 @@ const HANDLERS = {
       const db = load_();
       const t = compute_(db).tickets[p.ticket];
       if (!t) throw err_('BAD', '교환권을 찾을 수 없어요.');
-      if (!t.exchanged && !db.done[p.actionId]) append_([row_(T.EXCHANGE, t.student, '', { ticket: t.no }, p.actionId)]);
-      return adminView_(load_());
+      if (!t.exchanged && !db.done[p.actionId]) append_([row_(T.EXCHANGE, t.student, '', { ticket: t.no }, p.actionId)], db);
+      return adminView_(db);
     });
   },
   markPrinted: function (req, p) {
     auth_(req.token, 'admin');
     return withLock_(function () {
       const db = load_();
-      const list = (p.tickets || []).map(String).filter(function (n) { return compute_(db).tickets[n]; });
-      if (list.length && !db.done[p.actionId]) append_([row_(T.PRINT, '', list.length, { tickets: list, reprint: !!p.reprint }, p.actionId)]);
-      return adminView_(load_());
+      const tickets = compute_(db).tickets;
+      const list = (p.tickets || []).map(String).filter(function (n) { return tickets[n]; });
+      if (list.length && !db.done[p.actionId]) append_([row_(T.PRINT, '', list.length, { tickets: list, reprint: !!p.reprint }, p.actionId)], db);
+      return adminView_(db);
     });
   },
   rewardDone: function (req, p) {
     auth_(req.token, 'admin');
     return withLock_(function () {
       const db = load_();
-      if (!db.done[p.actionId]) append_([row_(T.REWARD, '', Number(p.at) || 0, { at: Number(p.at) || 0 }, p.actionId)]);
-      return adminView_(load_());
+      if (!db.done[p.actionId]) append_([row_(T.REWARD, '', Number(p.at) || 0, { at: Number(p.at) || 0 }, p.actionId)], db);
+      return adminView_(db);
     });
   },
   deletePraise: function (req, p) {
@@ -217,8 +219,8 @@ const HANDLERS = {
     return withLock_(function () {
       const db = load_();
       const target = db.log.filter(function (r) { return r.id === p.id && r.type === T.PRAISE; })[0];
-      if (target) cancelRows_(function (r) { return r.id === target.id || (target.action && r.action === target.action && r.type === T.LUCKY); });
-      return adminView_(load_());
+      if (target) cancelRows_(function (r) { return r.id === target.id || (target.action && r.action === target.action && r.type === T.LUCKY); }, db);
+      return adminView_(db);
     });
   },
   cancelEvent: function (req, p) {
@@ -232,8 +234,8 @@ const HANDLERS = {
         if (r.id === target.id) return true;
         // 칭찬 스탬프를 취소하면 같은 순간에 같이 생긴 황금 붕어빵·되찾기도 함께 취소해요.
         return target.type === T.AWARD && target.action && r.action === target.action && r.no === target.no && (r.type === T.GOLDEN || r.type === T.RECOVER);
-      });
-      return adminView_(load_());
+      }, db);
+      return adminView_(db);
     });
   },
   adjust: function (req, p) {
@@ -244,8 +246,8 @@ const HANDLERS = {
       const amount = Math.round(Number(p.amount));
       if (!studentByNo_(db, no)) throw err_('BAD', '학생을 골라 주세요.');
       if (!amount || Math.abs(amount) > 100) throw err_('BAD', '개수를 1~100 사이로 넣어 주세요.');
-      if (!db.done[p.actionId]) append_([row_(T.ADJUST, no, amount, { reason: String(p.reason || '').slice(0, 40) }, p.actionId)]);
-      return adminView_(load_());
+      if (!db.done[p.actionId]) append_([row_(T.ADJUST, no, amount, { reason: String(p.reason || '').slice(0, 40) }, p.actionId)], db);
+      return adminView_(db);
     });
   },
   regenCode: function (req, p) {
@@ -409,8 +411,8 @@ function award_(p) {
       result.recovered.push(no);
     }
   });
-  if (rows.length) append_(rows);
-  result.view = padView_(load_());
+  if (rows.length) append_(rows, db);
+  result.view = padView_(db);
   return result;
 }
 
@@ -426,9 +428,9 @@ function penalty_(p) {
     if (!targets.length) throw err_('BAD', '학생을 먼저 골라 주세요.');
     const bulk = !!p.bulk;
     const reason = bulk ? '전체' : String(p.reason || '기타').slice(0, 30);
-    append_(targets.map(function (no) { return row_(T.PENALTY, no, amount, { lesson: L.id, reason: reason, bulk: bulk }, p.actionId); }));
+    append_(targets.map(function (no) { return row_(T.PENALTY, no, amount, { lesson: L.id, reason: reason, bulk: bulk }, p.actionId); }), db);
   }
-  return { view: padView_(load_()) };
+  return { view: padView_(db) };
 }
 
 function lessonFor_(st, cfg, id) {
@@ -1071,11 +1073,12 @@ function append_(rows, db) {
   if (db) rows.forEach(function (r) { const e = parseLogRow_(r); db.log.push(e); if (e.action) db.done[e.action] = true; });
 }
 
-function cancelRows_(pred) {
+/** 기록을 취소 표시해요. db를 같이 주면 기록을 다시 읽지 않고, db에도 같은 표시를 해요(응답을 만들 때 시트를 다시 읽지 않게). */
+function cancelRows_(pred, db) {
   const sh = sheet_(SHEET.log, LOG_HEAD);
-  const log = readLog_();
+  const log = db ? db.log : readLog_();
   log.forEach(function (r, i) {
-    if (!r.cancelled && pred(r)) sh.getRange(i + 2, 7).setValue('Y');
+    if (!r.cancelled && pred(r)) { sh.getRange(i + 2, 7).setValue('Y'); r.cancelled = true; }
   });
 }
 
