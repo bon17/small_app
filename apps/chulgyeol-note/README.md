@@ -55,6 +55,17 @@
 | `sw.js` | 오프라인 저장(서비스 워커). 글꼴을 바꾸면 안의 `CACHE` 이름 숫자를 올려요 |
 | `fonts/` | 나눔명조(한글 전체, 400·700·800)·프리텐다드(400~800). 둘 다 SIL OFL 1.1, 라이선스 파일 같이 있음 |
 
-## 인터넷에 올리기
+## 인터넷에 올리기 (Cloudflare)
 
-이 폴더만 따로 올리면 돼요(예: Cloudflare Pages에서 이 폴더를 루트로). 주소가 생기면 교실 서랍(허브)의 `apps.js`에 추가해요.
+이 폴더만 따로 Cloudflare Workers에 올려요. 배포 설정은 `wrangler.jsonc`, 올리지 않을 파일은 `.assetsignore`에 있어요.
+
+**처음 한 번 (GitHub 연결, 추천)** — 그다음부터는 `main`에 커밋이 들어오면 저절로 다시 배포돼요.
+1. Cloudflare 대시보드 → **Workers & Pages → Create → Import a repository** → `bon17/small_app` 고르기
+2. Project name: `chulgyeol-note`
+3. **Advanced settings → Root directory(Path)**: `apps/chulgyeol-note`
+4. Build command는 비우고, Deploy command는 `npx wrangler deploy` 그대로 → **Deploy**
+5. 주소: `https://chulgyeol-note.<계정 하위 도메인>.workers.dev` (교실 서랍과 같은 하위 도메인)
+
+**직접 올리기 (터미널)**: 이 폴더에서 `npx wrangler deploy`
+
+주소가 생기면 교실 서랍(허브)의 `apps.js`에 추가해요.

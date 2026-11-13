@@ -1,0 +1,7 @@
+# Cloudflare 에 올리지 않을 파일 (형식은 .gitignore 와 같아요)
+# 앱에 필요한 것만 올려요: index.html, style.css, app.js, sw.js, fonts/
+.assetsignore
+wrangler.jsonc
+README.md
+node_modules/
+.wrangler/
