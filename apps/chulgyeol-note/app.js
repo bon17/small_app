@@ -186,6 +186,7 @@ function renderHero(){
     ?'<button class="btn primary lg" type="button" data-act="open-mine">내 반 출결판 열기</button><button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>'
     :'<button class="btn primary lg" type="button" data-act="paste">명단 붙여넣고 시작</button><button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>';
   if(has)$('#paste').hidden=true;
+  requestAnimationFrame(fitArt);
 }
 function buildArt(){
   const cells=()=>[3,4,5,6,7,8,9,10].map(c=>`<i style="grid-column:${c}"></i>`).join('');
@@ -203,6 +204,17 @@ function buildArt(){
     h+='</div>';
   }
   $('#mb').innerHTML=h;
+  $$('.pp .yr').forEach(e=>{e.textContent=new Date().getFullYear()}); // 그림 속 연도도 그해로
+}
+/* 그림(출결판 → 신고서)은 데스크톱에서 늘 가로 한 줄. 칸이 좁으면 통째로 줄여요 */
+function fitArt(){
+  const art=$('.art'),stage=$('#art-stage');if(!art||!stage)return;
+  if(innerWidth<=720||!art.clientWidth){stage.style.transform='';stage.style.marginLeft='';art.style.height='';return}
+  stage.style.transform='none';
+  const w=stage.offsetWidth,h=stage.offsetHeight,avail=art.clientWidth,s=Math.min(1,avail/w);
+  stage.style.transform=`scale(${s.toFixed(4)})`;
+  stage.style.marginLeft=Math.max(0,(avail-w*s)/2)+'px';
+  art.style.height=(h*s)+'px';
 }
 function parseRoster(t){
   const out=[];
@@ -1020,7 +1032,7 @@ addEventListener('resize',()=>{
   if(draft){popX=null;place()}
   if(tour)showTour();
   if(!drop.hidden)placeDrop();
-  clearTimeout(rsT);rsT=setTimeout(()=>{if(st.screen==='docs')renderPaper()},150);
+  clearTimeout(rsT);rsT=setTimeout(()=>{if(st.screen==='docs')renderPaper();if(st.screen==='hero')fitArt()},120);
 });
 
 /* ───────── 가이드 (처음 출결판에 들어왔을 때 한 번만 저절로) ───────── */
@@ -1076,6 +1088,7 @@ function tourSeen(){try{return localStorage.getItem(TOUR_KEY)==='1'}catch(e){ret
 
 /* ───────── 시작 ───────── */
 buildArt();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(st.screen==='hero')fitArt()});
 const mine=loadSaved();
 if(mine&&mine.students.length){DB=mine;st.screen='board';render();maybeTour()}
 else{DB=mine||blankDB();st.screen='hero';render()}
