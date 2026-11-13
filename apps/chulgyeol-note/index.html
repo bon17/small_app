@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- HEAD START -->
+<title>출결노트</title>
+<meta name="description" content="출결 관리부터 신고서 출력까지. 출결을 넣으면 우리 학교 양식 결석신고서가 채워져요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap">
+<!-- HEAD END -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard-dynamic-subset.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- BODY START -->
+<div id="app" data-screen="hero">
+
+<header class="top">
+  <div class="wrap">
+    <button class="brand" type="button" data-act="home" title="처음 화면">출결노트</button>
+    <nav class="tabs" aria-label="화면">
+      <button class="tab" type="button" data-act="tab" data-tab="board" id="tab-board">출결판</button>
+      <button class="tab" type="button" data-act="tab" data-tab="docs" id="tab-docs">서류함 <span class="badge" id="owe-badge" hidden></span></button>
+    </nav>
+    <div class="top-r">
+      <span class="cls" id="cls"></span>
+      <button class="ghost" type="button" id="guideBtn" data-act="guide">가이드 보기</button>
+      <button class="ghost" type="button" id="setBtn" data-act="settings">설정</button>
+    </div>
+  </div>
+</header>
+
+<div class="sampleband" id="sampleband">
+  <div class="wrap"><span><b>예시 반</b>을 보는 중이에요. 이름은 모두 지어낸 것이고, 여기서 넣은 것은 저장되지 않아요.</span><button type="button" data-act="start-mine">내 반으로 시작하기</button></div>
+</div>
+
+<!-- 첫 화면 -->
+<section class="hero" id="hero">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="eyebrow">담임 선생님의 출결 노트</p>
+      <h1 class="hero-h">출결 관리부터<br>신고서 출력까지</h1>
+      <p class="hero-p">칸을 눌러 출결을 넣으면 우리 학교 양식 신고서가 채워져요. 학생별 횟수와 덜 받은 서류도 한 화면에서 챙겨요.</p>
+      <div class="hero-cta">
+        <button class="btn primary lg" type="button" data-act="paste">명단 붙여넣고 시작</button>
+        <button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>
+      </div>
+      <div class="paste" id="paste" hidden>
+        <label for="paste-ta">명단 붙여넣기<span>엑셀에서 번호·이름 두 칸을 복사해 붙이세요</span></label>
+        <textarea id="paste-ta" placeholder="1	강다온&#10;2	고은솔&#10;3	김나래&#10;…"></textarea>
+        <div class="paste-cls">
+          <label>학년 <input id="paste-grade" class="txt sm" inputmode="numeric" maxlength="2"></label>
+          <label>반 <input id="paste-cls" class="txt sm" inputmode="numeric" maxlength="2"></label>
+          <label>담임 <input id="paste-teacher" class="txt md" maxlength="10"></label>
+        </div>
+        <div class="paste-f"><p class="hint" id="paste-n">한 줄에 한 명씩이에요.</p><button class="btn primary" type="button" data-act="build">출결판 만들기</button></div>
+      </div>
+      <ol class="hero-steps"><li><b>1</b>명단 붙여넣기</li><li><b>2</b>칸 누르고 입력</li><li><b>3</b>신고서 인쇄</li></ol>
+      <p class="hero-safe"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>학생 이름은 이 컴퓨터에만 저장돼요. 서버로 보내지 않아요.</p>
+    </div>
+    <div class="art anim" aria-hidden="true">
+      <div class="mb" id="mb"></div>
+      <svg class="arr" viewBox="0 0 40 24" width="40" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h34M28 5l8 7-8 7"/></svg>
+      <div class="pp">
+        <div class="pp-sign"><span>결<br>재</span><span>담 임</span><span>학년부장</span></div>
+        <div class="pp-t">질병【결석, 지각, <span class="circ">조퇴</span>, 결과】신고서</div>
+        <div class="pp-id">제 <b class="v" style="--d:.1s">2</b> 학년 <b class="v" style="--d:.15s">2</b> 반 <b class="v" style="--d:.2s">6</b> 번<br>성 명 : <b class="v" style="--d:.3s">노유찬</b></div>
+        <p>위 본인은 다음과 같이( <b class="v" style="--d:.45s">조퇴</b> )하였기에 보호자 연서로 신고합니다.</p>
+        <p>1. 기 간 : 2026년 <b class="v" style="--d:.6s">11</b>월 <b class="v" style="--d:.65s">13</b>일부터<br>　　　　　2026년 <b class="v" style="--d:.7s">11</b>월 <b class="v" style="--d:.75s">13</b>일까지 ( <b class="v" style="--d:.8s">1</b> )일간</p>
+        <p>2. 사 유 : ( <b class="v" style="--d:.95s">병원 진료</b> )</p>
+        <p>3. 첨부 서류 : <b class="v" style="--d:1.1s">진료확인서</b></p>
+        <div class="pp-sig">본　인 : <b class="v" style="--d:1.25s">노유찬</b> ㊞<br>보호자 : 　　　　 ㊞</div>
+        <div class="pp-date">2026년 <b class="v" style="--d:1.4s">11</b>월 <b class="v" style="--d:1.45s">13</b>일</div>
+        <div class="pp-to">○○중학교장 귀하</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 출결판 -->
+<main class="wrap" id="board">
+  <div class="bar">
+    <div class="nav">
+      <button class="icon" type="button" data-act="prev" aria-label="이전">‹</button>
+      <h2 class="title" id="title"></h2>
+      <button class="icon" type="button" data-act="next" aria-label="다음">›</button>
+      <button class="small" type="button" data-act="today">오늘</button>
+    </div>
+    <div class="seg" role="tablist" aria-label="보기">
+      <button type="button" role="tab" data-view="day">하루(교시별)</button>
+      <button type="button" role="tab" data-view="month">한 달(학생별)</button>
+    </div>
+  </div>
+  <div class="sum" id="sum"></div>
+  <section class="sheet">
+    <div class="scroll" id="grid"></div>
+    <div class="foot" id="foot"></div>
+  </section>
+</main>
+
+<!-- 서류함 -->
+<main class="wrap" id="docs">
+  <div class="bar">
+    <div class="nav">
+      <button class="icon" type="button" data-act="dprev" aria-label="지난달">‹</button>
+      <h2 class="title" id="dtitle"></h2>
+      <button class="icon" type="button" data-act="dnext" aria-label="다음 달">›</button>
+    </div>
+    <div class="seg" id="dfilter" aria-label="거르기">
+      <button type="button" data-f="all">전체</button>
+      <button type="button" data-f="unprinted">안 뽑은 것</button>
+      <button type="button" data-f="owe">덜 받은 것</button>
+    </div>
+  </div>
+  <div class="docs-grid">
+    <aside class="dlist">
+      <div class="dl-h"><label class="chk"><input type="checkbox" id="dl-all"> 모두 고르기</label><span id="dl-n"></span></div>
+      <ul id="dl"></ul>
+    </aside>
+    <section class="dview">
+      <div class="dv-bar">
+        <div class="dv-who" id="dv-who"></div>
+        <span class="spacer"></span>
+        <div class="menu-wrap">
+          <button class="btn" type="button" data-act="blankmenu" aria-haspopup="true">빈 양식</button>
+          <div class="menu" id="blankmenu" hidden>
+            <button type="button" data-act="blank" data-type="질병">질병 신고서</button>
+            <button type="button" data-act="blank" data-type="출석인정">출석인정 신고서</button>
+            <button type="button" data-act="blank" data-type="기타">학부모·담임 의견서</button>
+          </div>
+        </div>
+        <button class="btn" type="button" data-act="print-one" id="print-one">이 장만 인쇄</button>
+        <button class="btn primary" type="button" data-act="print-checked" id="print-checked">체크한 0장 인쇄</button>
+      </div>
+      <div class="dv-edit" id="dv-edit"></div>
+      <div class="paper-wrap" id="paper"></div>
+    </section>
+  </div>
+</main>
+
+</div>
+
+<div id="print-root" aria-hidden="true"></div>
+<div class="rsdrop" id="rsdrop" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-t"></span><button type="button" id="toast-undo">되돌리기</button></div>
+<!-- BODY END -->
+<script src="app.js"></script>
+</body>
+</html>
