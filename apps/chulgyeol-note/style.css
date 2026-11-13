@@ -1,6 +1,16 @@
 /* 출결노트
    레이아웃: 처음엔 히어로, 들어가면 얇은 머리줄 + 넓은 출석부 종이 한 장(출결판) 또는 목록 + A4 종이(서류함).
    색은 출결 구분 4가지에만 쓴다. 화면 글꼴은 프리텐다드, 제목과 '쓴 내용'은 명조. */
+
+/* 글꼴은 앱 폴더에 들어 있어요 (인터넷 없이도 신고서가 같은 모양으로 나오게) — 둘 다 SIL OFL 1.1 */
+@font-face{font-family:"Pretendard";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/pretendard/Pretendard-Regular.subset.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:500;font-style:normal;font-display:swap;src:url("fonts/pretendard/Pretendard-Medium.subset.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/pretendard/Pretendard-SemiBold.subset.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/pretendard/Pretendard-Bold.subset.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:800;font-style:normal;font-display:swap;src:url("fonts/pretendard/Pretendard-ExtraBold.subset.woff2") format("woff2")}
+@font-face{font-family:"Nanum Myeongjo";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/nanum-myeongjo/NanumMyeongjo-Regular.woff2") format("woff2")}
+@font-face{font-family:"Nanum Myeongjo";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/nanum-myeongjo/NanumMyeongjo-Bold.woff2") format("woff2")}
+@font-face{font-family:"Nanum Myeongjo";font-weight:800;font-style:normal;font-display:swap;src:url("fonts/nanum-myeongjo/NanumMyeongjo-ExtraBold.woff2") format("woff2")}
 :root{
   --desk:#EDF0F4; --sheet:#FFFFFF; --sheet2:#F6F7FA; --hover:#F7F9FC;
   --ink:#172031; --ink2:#4A5466; --ink3:#8B94A5;
@@ -83,6 +93,9 @@ button{font:inherit;color:inherit}
 .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--todo);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
 .top-r{margin-left:auto;display:flex;align-items:center;gap:10px}
 .cls{color:var(--ink2);font-weight:500;white-space:nowrap;margin-right:4px}
+.net{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--done);background:color-mix(in srgb,var(--done) 10%,var(--sheet));white-space:nowrap;cursor:default}
+.net::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.net.off{color:var(--todayInk);background:var(--today)}
 .cls b{color:var(--ink);font-weight:700}
 .ghost{height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--rule2);background:var(--sheet);font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
 .ghost:hover{border-color:var(--ink3);color:var(--ink)}
@@ -522,7 +535,7 @@ td.p.anchored{box-shadow:inset 0 0 0 2px var(--focus)}
   .hero-in{grid-template-columns:minmax(0,1fr);gap:40px}
 }
 @media (max-width:720px){
-  .cls{display:none}
+  .cls,.net:not(.off){display:none}
   .title{font-size:20px;margin:0 4px}
   .legend{margin-left:0}
   .catch{display:block;background:var(--veil)}

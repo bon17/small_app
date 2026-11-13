@@ -1048,6 +1048,7 @@ const TOUR=[
   {sel:['[data-tour="status"]'],t:'받으면 눌러서 체크',p:'주황 점은 아직 덜 받은 신고서·서류예요. 받으면 한 번 누르세요.'},
   {sel:['#grid .rs-in'],t:'사유는 칸에서 바로',p:'사유 칸을 누르면 전에 쓴 사유가 목록으로 떠요. 골라 넣거나, ×로 목록에서 지울 수 있어요.'},
   {sel:['#tab-docs'],t:'서류함에서 인쇄',p:'넣은 출결은 서류함에 모여요. 우리 학교 양식 그대로 채워진 신고서를 골라서 한 번에 인쇄해요.'},
+  {sel:['#netState','#setBtn'],t:'인터넷이 없어도 돼요',p:'인터넷이 될 때 한 번 열어 두면, 그다음엔 인터넷이 끊겨도 이 주소로 열리고 입력·저장·인쇄가 다 돼요. 기록은 이 컴퓨터의 이 브라우저에만 있으니 설정에서 가끔 백업 파일을 받아 두세요.'},
   {sel:['#guideBtn'],t:'다시 보고 싶으면',p:'이 안내는 처음 한 번만 떠요. 다시 보려면 여기 [가이드 보기]를 누르세요.'},
 ];
 let tour=null;
@@ -1090,6 +1091,23 @@ function endTour(){
   try{localStorage.setItem(TOUR_KEY,'1')}catch(e){}
 }
 function tourSeen(){try{return localStorage.getItem(TOUR_KEY)==='1'}catch(e){return false}}
+
+/* ───────── 오프라인 ───────── */
+// 웹 주소로 열었을 때만 앱 파일·글꼴을 브라우저에 저장해 둬요(파일로 열거나 미리 보기에서는 안 써요)
+const canOffline='serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!PREVIEW;
+function updateNet(){
+  const el=$('#netState');if(!el)return;
+  const ready=canOffline&&!!navigator.serviceWorker.controller;
+  if(!navigator.onLine){el.hidden=false;el.className='net off';el.textContent='인터넷 없음 · 계속 쓸 수 있어요';el.title='넣은 것은 이 컴퓨터에 저장돼요.'}
+  else if(ready){el.hidden=false;el.className='net';el.textContent='오프라인 준비됨';el.title='인터넷이 없어도 이 주소로 열려요.'}
+  else el.hidden=true;
+}
+addEventListener('online',updateNet);addEventListener('offline',updateNet);
+if(canOffline){
+  navigator.serviceWorker.addEventListener('controllerchange',updateNet);
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+updateNet();
 
 /* ───────── 시작 ───────── */
 buildArt();

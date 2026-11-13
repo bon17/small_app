@@ -6,11 +6,7 @@
 <!-- HEAD START -->
 <title>출결노트</title>
 <meta name="description" content="출결 관리부터 신고서 출력까지. 출결을 넣으면 우리 학교 양식 결석신고서가 채워져요.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap">
 <!-- HEAD END -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard-dynamic-subset.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,6 +21,7 @@
       <button class="tab" type="button" data-act="tab" data-tab="docs" id="tab-docs">서류함 <span class="badge" id="owe-badge" hidden></span></button>
     </nav>
     <div class="top-r">
+      <span class="net" id="netState" hidden></span>
       <span class="cls" id="cls"></span>
       <button class="ghost" type="button" id="guideBtn" data-act="guide">가이드 보기</button>
       <button class="ghost" type="button" id="setBtn" data-act="settings">설정</button>
