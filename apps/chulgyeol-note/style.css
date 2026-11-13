@@ -96,6 +96,9 @@ button{font:inherit;color:inherit}
 .net{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--done);background:color-mix(in srgb,var(--done) 10%,var(--sheet));white-space:nowrap;cursor:default}
 .net::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .net.off{color:var(--todayInk);background:var(--today)}
+.net.wait{color:var(--ink2);background:var(--sheet2)}
+.offst{display:grid;gap:8px;justify-items:start}
+.offst .hint{margin:0;font-size:13px;line-height:1.6}
 .cls b{color:var(--ink);font-weight:700}
 .ghost{height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--rule2);background:var(--sheet);font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
 .ghost:hover{border-color:var(--ink3);color:var(--ink)}

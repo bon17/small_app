@@ -897,6 +897,7 @@ function openSettings(){
   closePop();closeDrawer();closeDrop();
   const s=SET(),days=['월','화','수','목','금'];
   let h=`<div class="modal-bg" id="modal"><div class="modal" role="dialog" aria-label="설정"><div class="modal-h"><h3>설정</h3><button type="button" class="icon" data-m="close" aria-label="닫기">×</button></div><div class="modal-b">`;
+  h+=`<section><h4>오프라인<small>따로 켤 것 없이 저절로 돼요</small></h4><div id="s-offline">${offlineHTML()}</div></section>`;
   h+=`<section><h4>학교와 반<small>신고서에 들어가요</small></h4><div class="sgrid">
     <label>학교 이름<input class="txt" id="s-school" value="${esc(s.school)}" placeholder="예) 기산중학교"></label>
     <label>학년<input class="txt" id="s-grade" value="${esc(s.grade)}" inputmode="numeric"></label>
@@ -1048,7 +1049,7 @@ const TOUR=[
   {sel:['[data-tour="status"]'],t:'받으면 눌러서 체크',p:'주황 점은 아직 덜 받은 신고서·서류예요. 받으면 한 번 누르세요.'},
   {sel:['#grid .rs-in'],t:'사유는 칸에서 바로',p:'사유 칸을 누르면 전에 쓴 사유가 목록으로 떠요. 골라 넣거나, ×로 목록에서 지울 수 있어요.'},
   {sel:['#tab-docs'],t:'서류함에서 인쇄',p:'넣은 출결은 서류함에 모여요. 우리 학교 양식 그대로 채워진 신고서를 골라서 한 번에 인쇄해요.'},
-  {sel:['#netState','#setBtn'],t:'인터넷이 없어도 돼요',p:'인터넷이 될 때 한 번 열어 두면, 그다음엔 인터넷이 끊겨도 이 주소로 열리고 입력·저장·인쇄가 다 돼요. 기록은 이 컴퓨터의 이 브라우저에만 있으니 설정에서 가끔 백업 파일을 받아 두세요.'},
+  {sel:['#netState','#setBtn'],t:'인터넷이 없어도 돼요',p:'인터넷이 될 때 한 번 열어 두면, 그다음엔 인터넷이 끊겨도 이 주소로 열리고 입력·저장·인쇄가 다 돼요. 따로 켤 것은 없어요. 지금 상태는 설정의 [오프라인] 칸에서 볼 수 있어요.'},
   {sel:['#guideBtn'],t:'다시 보고 싶으면',p:'이 안내는 처음 한 번만 떠요. 다시 보려면 여기 [가이드 보기]를 누르세요.'},
 ];
 let tour=null;
@@ -1095,7 +1096,18 @@ function tourSeen(){try{return localStorage.getItem(TOUR_KEY)==='1'}catch(e){ret
 /* ───────── 오프라인 ───────── */
 // 웹 주소로 열었을 때만 앱 파일·글꼴을 브라우저에 저장해 둬요(파일로 열거나 미리 보기에서는 안 써요)
 const canOffline='serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!PREVIEW;
+/* 설정의 '오프라인' 칸에 보여 줄 지금 상태 */
+function offlineInfo(){
+  const on=navigator.onLine;
+  if(PREVIEW)return {c:'wait',t:'미리 보기에서는 안 돼요',d:'배포한 웹 주소로 열면 따로 켜지 않아도 저절로 저장돼요. 미리 보기 화면은 인쇄·파일 받기·오프라인 저장이 막혀 있어요.'};
+  if(!/^https?:$/.test(location.protocol))return {c:'',t:'파일로 열었어요',d:'파일로 연 앱은 원래 인터넷 없이 돼요. 다만 웹 주소에서 쓴 기록과는 따로 저장돼요.'};
+  if(!('serviceWorker' in navigator))return {c:'wait',t:'이 브라우저는 오프라인 저장을 못 해요',d:'크롬이나 엣지로 열어 주세요.'};
+  if(navigator.serviceWorker.controller)return {c:on?'':'off',t:on?'오프라인 준비됨':'인터넷 없음 · 계속 쓸 수 있어요',d:'이 브라우저에 앱과 글꼴이 저장돼 있어요. 인터넷이 없어도 이 주소로 열리고, 넣은 것은 이 컴퓨터에 저장돼요.'};
+  return {c:'wait',t:'저장하는 중',d:on?'잠깐 기다리거나 새로고침해 보세요. 인터넷이 될 때 한 번 열면 저절로 저장돼요.':'아직 저장되지 않았어요. 인터넷이 될 때 다시 열어 주세요.'};
+}
+function offlineHTML(){const i=offlineInfo();return `<div class="offst"><span class="net ${i.c}">${i.t}</span><p class="hint">${i.d}</p></div>`}
 function updateNet(){
+  const so=$('#s-offline');if(so)so.innerHTML=offlineHTML();
   const el=$('#netState');if(!el)return;
   const ready=canOffline&&!!navigator.serviceWorker.controller;
   if(!navigator.onLine){el.hidden=false;el.className='net off';el.textContent='인터넷 없음 · 계속 쓸 수 있어요';el.title='넣은 것은 이 컴퓨터에 저장돼요.'}
