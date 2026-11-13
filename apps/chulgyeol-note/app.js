@@ -134,7 +134,7 @@ function sampleDB(){
   let id=1;
   const R=(no,start,gubun,kind,o={})=>{const r={id:id++,no,start,days:1,gubun,kind,periods:[],time:'',reason:'',docs:[],gotForm:false,gotDocs:false,...o};r.periods=r.periods.filter(i=>!offP(start,i));return r};
   d.records=[
-    R(3,t,'질병','결과',{periods:[3,4],time:'11:05',reason:'병원 진료',docs:['진료확인서']}),
+    R(3,t,'질병','결과',{periods:[3,4],reason:'병원 진료',docs:['진료확인서']}),
     R(8,t,'질병','결석',{reason:'감기',docs:['처방전']}),
     R(14,t,'질병','지각',{periods:[0,1],time:'09:40',gotForm:true}),
     R(21,t,'출석인정','조퇴',{periods:from(6,t),time:'14:50',reason:'교내 대회 참가',docs:['기타 서류'],gotForm:true}),
@@ -147,7 +147,7 @@ function sampleDB(){
     R(17,b(4),'미인정','결석'),
     R(9,b(7),'출석인정','결석',{days:3,reason:'경조사(조부 상)',docs:['기타 서류'],gotForm:true,printed:b(7)}),
     R(20,b(9),'질병','지각',{periods:[0],time:'09:10',gotForm:true,printed:b(9)}),
-    R(26,b(1),'질병','결과',{periods:[5],time:'13:40',reason:'병원 진료',docs:['진료확인서']}),
+    R(26,b(1),'질병','결과',{periods:[5],reason:'병원 진료',docs:['진료확인서']}),
     R(3,b(5),'질병','결석',{reason:'감기',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
     R(14,b(5),'질병','조퇴',{periods:from(6,b(5)),time:'14:40',reason:'복통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
   ];
@@ -523,6 +523,7 @@ function openPop(no,date,p,anchor){
   const pn=p==null||p===''?null:Number(p);
   draft=ex?JSON.parse(JSON.stringify(ex)):{id:null,no,start:date,days:1,gubun:'질병',kind:'결석',periods:[],time:'',reason:'',docs:[],gotForm:false,gotDocs:false};
   if(!ex)draft.time=pn!=null&&pn<=7?SET().times[pn]:(pn==null&&date===TODAY?nowHM():'');
+  draft.p=pn; // 눌러서 연 교시 (결과일 때 미리 골라 둘 칸)
   warn=false;anchorEl=anchor;
   if(anchor&&anchor.tagName==='TD')anchor.classList.add('anchored');
   const c=document.createElement('div');c.className='catch';c.id='catch';
@@ -547,14 +548,16 @@ function closePop(){
 function fillByTime(){
   const vp=validP(draft.start),cp=curP(draft.time,draft.start);
   if(draft.kind==='결석'){draft.periods=[];return}
+  /* 결과는 시각 없이 교시만: 표의 칸을 눌러 열었으면 그 교시를 미리 골라 둬요 */
+  if(draft.kind==='결과'){const p=draft.p;draft.periods=p!=null&&p>=0&&p<=8&&!offP(draft.start,p)?[p]:[];return}
   if(cp==null){draft.periods=draft.kind==='지각'?[0]:[];return}
   if(draft.kind==='지각')draft.periods=cp<0?[]:vp.filter(i=>i<=cp&&i<8);
   if(draft.kind==='조퇴')draft.periods=cp<0?vp.slice():vp.filter(i=>i>=cp);
-  if(draft.kind==='결과')draft.periods=cp>=0?[cp]:[];
 }
 function tapPeriod(q){draft.periods=draft.periods.includes(q)?draft.periods.filter(i=>i!==q):[...draft.periods,q].sort((a,b)=>a-b)}
 function timeHint(){
   if(warn)return '교시를 하나 이상 골라 주세요';
+  if(draft.kind==='결과')return '빠진 교시를 눌러 골라요. 여러 개 고를 수 있어요.';
   if(!draft.time)return '시각을 넣으면 교시가 자동으로 체크돼요. 칸을 눌러 고칠 수도 있어요.';
   const cp=curP(draft.time,draft.start),T=SET().times;
   if(cp<0)return `${draft.time}은 조회(${T[0]}) 전이에요. 칸을 눌러 고칠 수 있어요.`;
@@ -589,14 +592,14 @@ function drawPop(){
   const pop=$('#pop');if(!pop)return;
   if(dropIn&&dropIn.dataset.rs==='pop')closeDrop();
   const s=stu(draft.no),g=G[draft.gubun];
-  const suf={'지각':'에 들어왔어요','조퇴':'에 나갔어요','결과':'쯤 빠졌어요'}[draft.kind];
+  const suf={'지각':'에 들어왔어요','조퇴':'에 나갔어요'}[draft.kind];
   let h=`<div class="pop-h"><b>${s.no}번 ${esc(s.name)}</b><span>${md(draft.start)}</span><button type="button" class="icon" data-pop="close" aria-label="닫기">×</button></div><div class="pop-b">`;
   h+=`<div class="row"><span class="k">구분</span><div class="chips">${GK.map((x,i)=>`<button type="button" class="ch g t-${G[x].k}${draft.gubun===x?' on':''}" data-pop="gubun" data-v="${x}" title="숫자 ${i+1}">${x}</button>`).join('')}</div></div>`;
   h+=`<div class="row"><span class="k">종류</span><div class="chips">${KINDS.map(k=>`<button type="button" class="ch${draft.kind===k?' on':''}" data-pop="kind" data-v="${k}">${k}</button>`).join('')}</div></div>`;
   if(draft.kind==='결석'){
     h+=`<div class="row"><span class="k">기간</span><div><span class="step"><button type="button" data-pop="days" data-v="-1" aria-label="하루 줄이기">−</button><output>${draft.days}</output><button type="button" data-pop="days" data-v="1" aria-label="하루 늘리기">+</button></span><span class="unit">일 · 주말은 빼고 세요</span></div></div>`;
   }else{
-    h+=`<div class="row"><span class="k">시각</span><div class="trow"><input type="time" id="pop-time" class="txt time" value="${draft.time}" aria-label="시각"><span class="suf">${suf}</span><button type="button" class="ch xs" data-pop="now">지금</button></div></div>`;
+    if(draft.kind!=='결과')h+=`<div class="row"><span class="k">시각</span><div class="trow"><input type="time" id="pop-time" class="txt time" value="${draft.time}" aria-label="시각"><span class="suf">${suf}</span><button type="button" class="ch xs" data-pop="now">지금</button></div></div>`;
     h+=`<div class="row t-${g.k}"><span class="k">교시</span><div><div class="chips" id="pop-per">${perChips()}</div><div class="hint${warn?' warn':''}" id="pop-thint">${timeHint()}</div></div></div>`;
   }
   h+=`<div class="row"><span class="k">사유</span><div><input class="txt serif" id="pop-reason" data-rs="pop" value="${esc(draft.reason)}" placeholder="비워 두면 신고서에 빈칸으로 나가요" autocomplete="off"><div class="chips sugg" id="pop-rchips"></div></div></div>`;
@@ -652,7 +655,9 @@ function save_(quiet){
   if(draft.kind!=='결석'&&!draft.periods.length){warn=true;refreshParts();const p=$('#pop');p.classList.remove('shake');void p.offsetWidth;p.classList.add('shake');return null}
   const before=snap();
   const r=JSON.parse(JSON.stringify(draft));
+  delete r.p;
   if(r.kind==='결석'){r.periods=[];r.time=''}else r.days=1;
+  if(r.kind==='결과')r.time='';
   if(!r.docs.length)r.gotDocs=false;
   if(!needsForm(r))r.gotForm=false;
   const span=spanOf(r);
