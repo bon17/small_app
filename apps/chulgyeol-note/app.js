@@ -712,7 +712,7 @@ function renderDocList(){
 function writtenOf(r){return r.written===undefined?spanOf(r).slice(-1)[0]:r.written}
 function daysOf(r){return r.dayCount===undefined||r.dayCount===null?String(r.days):String(r.dayCount)}
 function docsOf(r){return r.docsText===undefined||r.docsText===null?r.docs.join(', '):r.docsText}
-/* 기간 칸: 결석은 ( )일간, 지각은 ( )교시부터, 조퇴는 ( )교시까지, 결과는 ( )교시 */
+/* 기간 칸: 결석은 ( )일간, 지각은 ( )교시까지, 조퇴는 ( )교시부터, 결과는 ( )교시 */
 const pnm=i=>i===0?'조회':i===8?'종례':String(i);
 function periodAuto(r){
   const vp=validP(r.start),ps=vp.filter(i=>r.periods.includes(i));
@@ -726,7 +726,7 @@ function periodAuto(r){
 }
 function periodOf(r){return r.periodLabel===undefined||r.periodLabel===null?periodAuto(r):String(r.periodLabel)}
 const pword=t=>t===''||/^[\d~,\s]+$/.test(t)?'교시':'';
-const ptail=k=>({'지각':'부터','조퇴':'까지'}[k]||'');
+const ptail=k=>({'지각':'까지','조퇴':'부터'}[k]||'');
 const opPick=r=>({parent:r.opParent!==false,teacher:r.opTeacher!==false});
 function renderEdit(){
   const r=rec(st.focus),box=$('#dv-edit'),who=$('#dv-who');
