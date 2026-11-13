@@ -40,8 +40,7 @@ function defSettings(){
   return {school:'기산중학교',grade:'',cls:'',teacher:'',
     times:['09:00','09:15','10:10','11:05','12:00','13:40','14:35','15:30'],
     last:{1:7,2:7,3:7,4:7,5:7},
-    subj:{1:['','','','','','',''],2:['','','','','','',''],3:['','','','','','',''],4:['','','','','','',''],5:['','','','','','','']},
-    periodNote:true};
+    subj:{1:['','','','','','',''],2:['','','','','','',''],3:['','','','','','',''],4:['','','','','','',''],5:['','','','','','','']},};
 }
 function blankDB(){return {v:1,settings:defSettings(),students:[],records:[],reasons:['병원 진료','감기','장염','두통','복통','가정 사정'],uid:1}}
 function migrate(d){
@@ -646,7 +645,14 @@ function save_(quiet){
   if(!needsForm(r))r.gotForm=false;
   const span=spanOf(r);
   DB.records=DB.records.filter(x=>x.id===r.id||x.no!==r.no||!spanOf(x).some(s=>span.includes(s)));
-  if(r.id)DB.records=DB.records.map(x=>x.id===r.id?{...x,...r}:x);else{r.id=DB.uid++;DB.records.push(r)}
+  if(r.id){
+    const old=rec(r.id);
+    if(old){ // 날짜·교시를 바꾸면 서류함에서 직접 고친 ( )교시·( )일간은 다시 자동으로
+      if(old.kind!==r.kind||old.start!==r.start||String(old.periods)!==String(r.periods))delete r.periodLabel;
+      if(old.kind!==r.kind||old.start!==r.start||old.days!==r.days)delete r.dayCount;
+    }
+    DB.records=DB.records.map(x=>x.id===r.id?r:x);
+  }else{r.id=DB.uid++;DB.records.push(r)}
   addReason(r.reason);
   save();
   const s=stu(r.no);
@@ -674,7 +680,7 @@ function docFiltered(){
   if(st.dfilter==='owe')return all.filter(r=>owes(r).length);
   return all;
 }
-const pagesOf=r=>r.gubun==='기타'?2:1;
+const pagesOf=r=>{if(r.gubun!=='기타')return 1;const p=opPick(r);return (p.parent?1:0)+(p.teacher?1:0)};
 function renderDocs(){
   const[y,m]=st.dmonth.split('-');
   $('#dtitle').textContent=`${y}년 ${Number(m)}월`;
@@ -706,17 +712,38 @@ function renderDocList(){
 function writtenOf(r){return r.written===undefined?spanOf(r).slice(-1)[0]:r.written}
 function daysOf(r){return r.dayCount===undefined||r.dayCount===null?String(r.days):String(r.dayCount)}
 function docsOf(r){return r.docsText===undefined||r.docsText===null?r.docs.join(', '):r.docsText}
+/* 기간 칸: 결석은 ( )일간, 지각은 ( )교시부터, 조퇴는 ( )교시까지, 결과는 ( )교시 */
+const pnm=i=>i===0?'조회':i===8?'종례':String(i);
+function periodAuto(r){
+  const vp=validP(r.start),ps=vp.filter(i=>r.periods.includes(i));
+  if(!ps.length)return '';
+  if(r.kind==='지각'){const x=ps.filter(i=>i<8);return pnm(x.length?Math.max(...x):8)}
+  if(r.kind==='조퇴')return pnm(Math.min(...ps));
+  const runs=[];let cur=[ps[0]];
+  for(let j=1;j<ps.length;j++){if(vp.indexOf(ps[j])===vp.indexOf(ps[j-1])+1)cur.push(ps[j]);else{runs.push(cur);cur=[ps[j]]}}
+  runs.push(cur);
+  return runs.map(u=>u.length===1?pnm(u[0]):`${pnm(u[0])}~${pnm(u[u.length-1])}`).join(', ');
+}
+function periodOf(r){return r.periodLabel===undefined||r.periodLabel===null?periodAuto(r):String(r.periodLabel)}
+const pword=t=>t===''||/^[\d~,\s]+$/.test(t)?'교시':'';
+const ptail=k=>({'지각':'부터','조퇴':'까지'}[k]||'');
+const opPick=r=>({parent:r.opParent!==false,teacher:r.opTeacher!==false});
 function renderEdit(){
   const r=rec(st.focus),box=$('#dv-edit'),who=$('#dv-who');
   if(!r){box.innerHTML='';who.innerHTML='';return}
   const s=stu(r.no)||{no:r.no,name:'(명단에 없음)'};
   who.innerHTML=`<b>${s.no}번 ${esc(s.name)}</b><span>${label(r)} · ${whenText(r)}${r.kind!=='결석'?' · '+esc(periodText(r.periods,r.start)):''}</span>`;
   let h=`<label class="fld"><span>작성일 (맨 아래 날짜)</span><div class="inl"><input type="date" class="txt" id="e-written" value="${writtenOf(r)||''}"><button type="button" class="small" data-act="e-clear">비우기</button></div></label>`;
-  h+=`<label class="fld"><span>( )일간</span><input type="number" class="txt" id="e-days" min="0" max="99" value="${esc(daysOf(r))}"></label>`;
+  if(r.kind==='결석')h+=`<label class="fld"><span>기간 ( )일간</span><input type="number" class="txt" id="e-days" min="0" max="99" value="${esc(daysOf(r))}"></label>`;
+  else h+=`<label class="fld"><span>기간 ( )교시${ptail(r.kind)}</span><input class="txt" id="e-period" value="${esc(periodOf(r))}" placeholder="비워 두면 빈칸으로 나가요" autocomplete="off"></label>`;
   h+=`<label class="fld"><span>사유</span><input class="txt serif" id="e-reason" data-rs="rec" data-id="${r.id}" value="${esc(r.reason)}" placeholder="비워 두면 빈칸으로 나가요" autocomplete="off"></label>`;
   h+=`<label class="fld"><span>첨부 서류</span><input class="txt serif" id="e-docs" value="${esc(docsOf(r))}" placeholder="비워 두면 빈칸으로 나가요"></label>`;
-  if(r.gubun==='기타')h+=`<label class="fld wide"><span>담임교사 의견 (의견서 둘째 장)</span><input class="txt serif" id="e-note" value="${esc(r.teacherNote||'')}" placeholder="비워 두면 손으로 쓸 수 있게 빈칸으로 나가요"></label>`;
-  h+=`<div class="fld-opts"><label class="chk"><input type="checkbox" id="e-pnote" ${SET().periodNote?'checked':''}> 지각·조퇴·결과는 사유 뒤에 교시 적기</label><span class="spacer"></span><button type="button" class="tog${r.gotForm?' on':''}" data-act="recv" data-id="${r.id}" data-what="form"><i>✓</i>${formWord(r)} 받음</button>${r.docs.length?`<button type="button" class="tog${r.gotDocs?' on':''}" data-act="recv" data-id="${r.id}" data-what="docs"><i>✓</i>서류 받음</button>`:''}</div>`;
+  if(r.gubun==='기타'){
+    const p=opPick(r);
+    h+=`<div class="fld wide"><span>뽑을 장 (둘 중 하나만 뽑을 수도 있어요)</span><div class="brow"><button type="button" class="tog${p.parent?' on':''}" data-act="oppage" data-w="parent"><i>✓</i>학부모 의견서</button><button type="button" class="tog${p.teacher?' on':''}" data-act="oppage" data-w="teacher"><i>✓</i>담임교사 의견서</button></div></div>`;
+    if(p.teacher)h+=`<label class="fld"><span>담임교사 의견</span><input class="txt serif" id="e-note" value="${esc(r.teacherNote||'')}" placeholder="비워 두면 손으로 쓸 수 있게 빈칸으로 나가요"></label>`;
+  }
+  h+=`<div class="fld-opts"><span class="spacer"></span><button type="button" class="tog${r.gotForm?' on':''}" data-act="recv" data-id="${r.id}" data-what="form"><i>✓</i>${formWord(r)} 받음</button>${r.docs.length?`<button type="button" class="tog${r.gotDocs?' on':''}" data-act="recv" data-id="${r.id}" data-what="docs"><i>✓</i>서류 받음</button>`:''}</div>`;
   box.innerHTML=h;
 }
 let paperTimer;
@@ -735,11 +762,11 @@ $('#docs').addEventListener('input',e=>{
   const id=e.target.id;
   if(id==='e-written')editRec(r=>{r.written=e.target.value||''});
   if(id==='e-days')editRec(r=>{r.dayCount=e.target.value===''?'':e.target.value});
+  if(id==='e-period')editRec(r=>{r.periodLabel=e.target.value.trim()});
   if(id==='e-docs')editRec(r=>{r.docsText=e.target.value});
   if(id==='e-note')editRec(r=>{r.teacherNote=e.target.value});
 });
 $('#docs').addEventListener('change',e=>{
-  if(e.target.id==='e-pnote'){SET().periodNote=e.target.checked;save();renderPaper()}
   if(e.target.id==='dl-all'){
     const list=docFiltered();
     if(e.target.checked)list.forEach(r=>st.checked.add(r.id));else list.forEach(r=>st.checked.delete(r.id));
@@ -758,22 +785,35 @@ function fitStyle(text,boxMM,pt){
   const f=Math.max(8,Math.floor(pt*boxMM/need*10)/10);
   return `font-size:${f}pt;`;
 }
+/* 이름은 한 칸씩 띄워서: 김나래 → 김 나 래 */
+const nameSp=n=>/^[가-힣]{2,5}$/.test(n||'')?spaced(n):(n||'');
 function formVals(r,blankType){
   const s=SET(),thisYear=new Date().getFullYear();
-  if(!r)return {type:blankType,grade:'',cls:'',no:'',name:'',kind:'',F:{y:thisYear,m:'',d:''},L:{y:thisYear,m:'',d:''},W:{y:thisYear,m:'',d:''},n:'',reason:'',docs:'',school:s.school,teacher:'',note:'',range:''};
+  if(!r)return {type:blankType,grade:'',cls:'',no:'',name:'',kind:'',F:{y:thisYear,m:'',d:''},L:{y:thisYear,m:'',d:''},W:{y:thisYear,m:'',d:''},n:'',ptxt:'',reason:'',docs:'',school:s.school,teacher:'',note:'',range:''};
   const who=stu(r.no)||{no:r.no,name:''};
   const ds=spanOf(r),first=ds[0],last=ds[ds.length-1];
   const ymd=x=>x?{y:+x.slice(0,4),m:+x.slice(5,7),d:+x.slice(8,10)}:{y:'',m:'',d:''};
   const F=ymd(first),L=ymd(last),w=writtenOf(r),W=w?ymd(w):{y:F.y,m:'',d:''};
-  let reason=r.reason||'';
-  if(r.kind!=='결석'&&s.periodNote){const pt=periodText(r.periods,r.start);if(pt)reason=reason?`${reason} (${pt})`:`(${pt})`}
   const range=F.m===L.m?(F.d===L.d?String(F.d):`${F.d}~${L.d}`):`${F.d}~${L.m}/${L.d}`;
-  return {type:r.gubun,grade:s.grade,cls:s.cls,no:who.no,name:who.name,kind:r.kind,F,L,W,n:daysOf(r),reason,docs:docsOf(r),school:s.school,teacher:s.teacher,note:r.teacherNote||'',range};
+  return {type:r.gubun,grade:s.grade,cls:s.cls,no:who.no,name:nameSp(who.name),kind:r.kind,F,L,W,n:daysOf(r),ptxt:r.kind==='결석'?'':periodOf(r),reason:r.reason||'',docs:docsOf(r),school:s.school,teacher:nameSp(s.teacher),note:r.teacherNote||'',range};
 }
 function formPages(r,blankType){
   const v=formVals(r,blankType);
-  if(v.type==='기타')return [opinionPage(v,true),opinionPage(v,false)];
+  if(blankType==='학부모')return [opinionPage(v,true)];
+  if(blankType==='담임')return [opinionPage(v,false)];
+  if(v.type==='기타'){
+    const p=r?opPick(r):{parent:true,teacher:true},out=[];
+    if(p.parent)out.push(opinionPage(v,true));
+    if(p.teacher)out.push(opinionPage(v,false));
+    return out;
+  }
   return [reportPage(v)];
+}
+/* 기간 줄: 결석(또는 빈 양식)은 ~부터 / ~까지 ( )일간, 지각·조퇴·결과는 한 줄 */
+function periodLine(v){
+  if(!v.kind||v.kind==='결석')return `<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일부터</div>
+<div class="a sp" style="top:106.3mm;left:54mm">${v.L.y||v.F.y}년${V(v.L.m,11)}월${V(v.L.d,8)}일까지 (${V(v.n,9)})일간</div>`;
+  return `<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일&nbsp;&nbsp;(${V(v.ptxt,[...v.ptxt].length>3?24:12)})${pword(v.ptxt)}${ptail(v.kind)}</div>`;
 }
 function reportPage(v){
   const ttl=`${v.type}<small>【${KINDS.map(k=>k===v.kind?`<span class="ck">${k}</span>`:k).join(', ')}】</small>신고서`;
@@ -782,12 +822,11 @@ function reportPage(v){
 <table class="sg"><tr><td class="k" rowspan="2">결<br>재</td><td class="h">담 임</td><td class="h n">학년부장</td></tr><tr><td class="b"></td><td class="b"></td></tr></table>
 <div class="a c ttl">${ttl}</div>
 <div class="a f11 sp" style="top:62.5mm;left:134.7mm">제${V(v.grade,8)}학년${V(v.cls,9)}반${V(v.no,9)}번</div>
-<div class="a f11 sp" style="top:69.4mm;left:134.7mm">성&nbsp;&nbsp;명 :${V(v.name,26,'vl',fitStyle(v.name,24,11)+'padding-left:2mm')}</div>
+<div class="a f11 sp" style="top:69.4mm;left:134.7mm">성&nbsp;&nbsp;명 :${V(v.name,30,'vl',fitStyle(v.name,28,11)+'padding-left:2.5mm')}</div>
 <div class="a sp" style="top:83.4mm;left:24.6mm">위 본인은 다음과 같이(${V(v.kind,15)})하였기에 보호자 연서로 신고합니다.</div>
 <div class="a sp" style="top:98.6mm;left:19.8mm">1. 기 간 :</div>
-<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일부터</div>
-<div class="a sp" style="top:106.3mm;left:54mm">${v.L.y||v.F.y}년${V(v.L.m,11)}월${V(v.L.d,8)}일까지 (${V(v.n,9)})일간</div>
-<div class="a sp" style="top:129.1mm;left:19.8mm">2. 사 유 : (${V(v.reason,104,'',fitStyle(v.reason,102,12))})</div>
+${periodLine(v)}
+<div class="a sp" style="top:129.1mm;left:19.8mm">2. 사 유 :${V(v.reason,140,'vl',fitStyle(v.reason,136,12)+'padding-left:3mm')}</div>
 <div class="a sp" style="top:152mm;left:19.8mm">3. 첨부 서류 :${V(v.docs,128,'vl',fitStyle(v.docs,124,12)+'padding-left:3mm')}</div>
 <div class="a sp" style="top:182.5mm;right:20mm">본&nbsp;&nbsp;인 :${V(v.name,36,'',fitStyle(v.name,34,12))}<span class="seal">인</span></div>
 <div class="a sp" style="top:190.1mm;right:20mm">보호자 :${V('',36)}<span class="seal">인</span></div>
@@ -802,9 +841,11 @@ function opinionPage(v,parent){
   return `<div class="pg op">
 <div class="a c ot" style="top:35mm">${parent?'학부모 의견서':'담임교사 의견서'}</div>
 <div class="a f14" style="top:54.8mm;left:116mm">제${V(v.grade,8)}학년${V(v.cls,8)}반${V(v.no,9)}번</div>
-<div class="a f14" style="top:63.2mm;left:116mm">성&nbsp;&nbsp;명 :${V(v.name,30,'vl','padding-left:2mm')}</div>
-<div class="a f15 lead" style="top:79.5mm">위 학생은 다음과 같이 (${V(v.kind,22)}) 하였기에 ${parent?'학부모':'담임'} 의견서를 제출합니다.</div>
-<table><tr class="r1"><th>기간</th><td>${v.F.y}년${V(v.F.m,11)}월${V(v.range,wide?24:11)}일 (${V(v.n,9)}일간)</td></tr>
+<div class="a f14" style="top:63.2mm;left:116mm">성&nbsp;&nbsp;명 :${V(v.name,34,'vl','padding-left:2.5mm')}</div>
+<div class="a f15 lead" style="top:79.5mm">위 학생은 다음과 같이 (${V(v.kind,16)}) 하였기에 ${parent?'학부모':'담임'} 의견서를 제출합니다.</div>
+<table><tr class="r1"><th>기간</th><td>${!v.kind||v.kind==='결석'
+  ?`${v.F.y}년${V(v.F.m,11)}월${V(v.range,wide?24:11)}일 (${V(v.n,9)}일간)`
+  :`${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,10)}일 (${V(v.ptxt,[...v.ptxt].length>3?22:11)})${pword(v.ptxt)}${ptail(v.kind)}`}</td></tr>
 <tr class="r2"><th>${parent?'학부모<br>의견':'담임<br>교사<br>의견'}</th><td class="memo">${parent?'':esc(v.note)}</td></tr></table>
 <div class="a c f15" style="top:201.8mm">${v.W.y||v.F.y}년${V(v.W.m,13)}월${V(v.W.d,13)}일</div>
 <div class="a f15" style="top:227.2mm;right:30mm">${parent?'학부모 성명 :':'담임교사 :'}${V(parent?'':v.teacher,38)}(인)</div>
@@ -951,6 +992,12 @@ document.addEventListener('click',e=>{
   if(a==='print-one'){const r=rec(st.focus);if(r)doPrint([r]);return}
   if(a==='print-checked'){const list=[...st.checked].map(rec).filter(Boolean).sort((x,y)=>x.no-y.no||x.start.localeCompare(y.start));doPrint(list);return}
   if(a==='e-clear'){editRec(r=>{r.written=''});const i=$('#e-written');if(i)i.value='';return}
+  if(a==='oppage'){
+    const r=rec(st.focus);if(!r)return;
+    const key=b.dataset.w==='parent'?'opParent':'opTeacher',other=b.dataset.w==='parent'?'opTeacher':'opParent';
+    if(r[key]!==false&&r[other]===false){toast('한 장은 남겨 두어야 해요');return}
+    r[key]=r[key]===false;save();renderEdit();renderPaper();renderDocList();return;
+  }
 });
 $$('#board .seg button').forEach(b=>b.addEventListener('click',()=>{
   closePop();st.view=b.dataset.view;
