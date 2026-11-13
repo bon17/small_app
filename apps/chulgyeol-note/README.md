@@ -57,7 +57,9 @@
 
 ## 인터넷에 올리기 (Cloudflare)
 
-이 폴더만 따로 Cloudflare Workers에 올려요. 배포 설정은 `wrangler.jsonc`, 올리지 않을 파일은 `.assetsignore`에 있어요.
+주소: **https://chulgyeol-note.kbe950107.workers.dev**
+
+이 폴더만 따로 Cloudflare Workers(`chulgyeol-note`)에 올려요. `main`에 커밋이 들어오면 1~2분 뒤 저절로 다시 배포돼요. 배포 설정은 `wrangler.jsonc`, 올리지 않을 파일은 `.assetsignore`에 있어요.
 
 **처음 한 번 (GitHub 연결, 추천)** — 그다음부터는 `main`에 커밋이 들어오면 저절로 다시 배포돼요.
 1. Cloudflare 대시보드 → **Workers & Pages → Create → Import a repository** → `bon17/small_app` 고르기
