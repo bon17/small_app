@@ -2,8 +2,8 @@
    - 인터넷이 될 때 한 번 열면 앱 파일과 글꼴을 이 브라우저에 저장해 둬요.
    - 그다음부터는 인터넷이 없어도 같은 주소로 열려요.
    - 앱 파일은 인터넷이 되면 늘 새 것을 받아 저장본도 바꿔요(안 되거나 4초 넘게 걸리면 저장본).
-   - 글꼴은 바뀌지 않으니 저장본을 먼저 써요. 글꼴을 바꾸면 아래 CACHE 이름의 숫자를 올려요. */
-const CACHE='chulgyeol-note-v1';
+   - 글꼴과 엑셀 읽기 도구(vendor/)는 바뀌지 않으니 저장본을 먼저 써요. 이것들을 바꾸면 아래 CACHE 이름의 숫자를 올려요. */
+const CACHE='chulgyeol-note-v2';
 const FILES=[
   './','style.css','app.js',
   'fonts/pretendard/Pretendard-Regular.subset.woff2',
@@ -14,6 +14,7 @@ const FILES=[
   'fonts/nanum-myeongjo/NanumMyeongjo-Regular.woff2',
   'fonts/nanum-myeongjo/NanumMyeongjo-Bold.woff2',
   'fonts/nanum-myeongjo/NanumMyeongjo-ExtraBold.woff2',
+  'vendor/xlsx.full.min.js',
 ];
 
 self.addEventListener('install',e=>{
@@ -42,8 +43,8 @@ self.addEventListener('fetch',e=>{
   const url=new URL(req.url);
   if(url.origin!==self.location.origin)return;
 
-  // 글꼴: 저장본 먼저
-  if(url.pathname.includes('/fonts/')){
+  // 글꼴·엑셀 읽기 도구: 저장본 먼저
+  if(/\/(fonts|vendor)\//.test(url.pathname)){
     e.respondWith(caches.match(req).then(r=>r||fetch(req).then(res=>keep(req,res))));
     return;
   }

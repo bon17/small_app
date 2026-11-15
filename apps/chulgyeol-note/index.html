@@ -41,12 +41,13 @@
       <h1 class="hero-h">출결 관리부터<br>신고서 출력까지</h1>
       <p class="hero-p">칸을 눌러 출결을 넣으면 우리 학교 양식 신고서가 채워져요. 학생별 횟수와 덜 받은 서류도 한 화면에서 챙겨요.</p>
       <div class="hero-cta">
-        <button class="btn primary lg" type="button" data-act="paste">명단 붙여넣고 시작</button>
+        <button class="btn primary lg" type="button" data-act="paste">명단 넣고 시작</button>
         <button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>
       </div>
       <div class="paste" id="paste" hidden>
-        <label for="paste-ta">명단 붙여넣기<span>엑셀에서 번호·이름 두 칸을 복사해 붙이세요</span></label>
-        <textarea id="paste-ta" placeholder="1	강다온&#10;2	고은솔&#10;3	김나래&#10;…"></textarea>
+        <label for="paste-ta">명단 넣기<span>엑셀 파일을 고르거나, 이름을 붙여 넣으세요. 번호는 없어도 돼요</span></label>
+        <div class="xl-row"><button class="btn" type="button" data-act="pick-xlsx" data-to="paste-ta">엑셀 파일 고르기</button><span class="hint">.xlsx · .xls · .csv — 여기로 끌어다 놓아도 돼요. 파일은 이 컴퓨터 안에서만 읽어요.</span></div>
+        <textarea id="paste-ta" placeholder="강다온&#10;고은솔&#10;김나래&#10;… 이름만 붙여도 돼요 (번호가 있으면 1 강다온처럼)"></textarea>
         <div class="paste-cls">
           <label>학년 <input id="paste-grade" class="txt sm" inputmode="numeric" maxlength="2"></label>
           <label>반 <input id="paste-cls" class="txt sm" inputmode="numeric" maxlength="2"></label>
@@ -54,7 +55,7 @@
         </div>
         <div class="paste-f"><p class="hint" id="paste-n">한 줄에 한 명씩이에요.</p><button class="btn primary" type="button" data-act="build">출결판 만들기</button></div>
       </div>
-      <ol class="hero-steps"><li><b>1</b>명단 붙여넣기</li><li><b>2</b>칸 누르고 입력</li><li><b>3</b>신고서 인쇄</li></ol>
+      <ol class="hero-steps"><li><b>1</b>명단 넣기</li><li><b>2</b>칸 누르고 입력</li><li><b>3</b>신고서 인쇄</li></ol>
       <p class="hero-safe"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>학생 이름은 이 컴퓨터에만 저장돼요. 서버로 보내지 않아요.</p>
     </div>
     <div class="art anim" aria-hidden="true">
@@ -144,6 +145,7 @@
 
 <div id="print-root" aria-hidden="true"></div>
 <div class="rsdrop" id="rsdrop" hidden></div>
+<input type="file" id="xlsx-in" accept=".xlsx,.xls,.csv,.txt" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-t"></span><button type="button" id="toast-undo">되돌리기</button></div>
 <!-- BODY END -->
 <script src="app.js"></script>

@@ -184,7 +184,7 @@ function renderHero(){
   const cta=$('.hero-cta');
   cta.innerHTML=has
     ?'<button class="btn primary lg" type="button" data-act="open-mine">내 반 출결판 열기</button><button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>'
-    :'<button class="btn primary lg" type="button" data-act="paste">명단 붙여넣고 시작</button><button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>';
+    :'<button class="btn primary lg" type="button" data-act="paste">명단 넣고 시작</button><button class="btn lg" type="button" data-act="sample">예시 반으로 둘러보기</button>';
   if(has)$('#paste').hidden=true;
   requestAnimationFrame(fitArt);
 }
@@ -216,23 +216,110 @@ function fitArt(){
   stage.style.marginLeft=Math.max(0,(avail-w*s)/2)+'px';
   art.style.height=(h*s)+'px';
 }
-function parseRoster(t){
-  const out=[];
-  t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).forEach((l,i)=>{
-    if(i===0&&/번호|성명|이름/.test(l))return;
-    const parts=l.split(/[\t,]+|\s+/).filter(Boolean);
-    let no,name;
-    if(parts.length>=2&&/^\d+$/.test(parts[0])){no=Number(parts[0]);name=parts.slice(1).join(' ')}
-    else if(parts.length>=2&&/^\d+$/.test(parts[parts.length-1])){no=Number(parts[parts.length-1]);name=parts.slice(0,-1).join(' ')}
-    else{no=out.length?Math.max(...out.map(s=>s.no))+1:1;name=parts.join(' ')}
-    if(name&&!/^\d+$/.test(name)&&!out.some(s=>s.no===no))out.push({no,name});
-  });
-  return out.sort((a,b)=>a.no-b.no);
+/* ───────── 명단 읽기 (붙여넣기·엑셀 파일 같은 방식) ─────────
+   - '성명(이름)' 머리글이 있으면 그 칸을, '번호' 머리글이 있으면 그 칸을 써요. 학년·반 칸이 있으면 같이 읽어요.
+   - 머리글이 없으면 줄마다 숫자 칸 = 번호, 이름처럼 생긴 칸 = 이름. 번호가 없으면 순서대로 1, 2, 3…
+   - 성별·생년월일 같은 다른 칸은 건너뛰어요. 한 줄에 이름만 여럿 있으면 각각 한 명으로 읽어요. */
+const NAME_STOP=/^(번호|번|이름|성명|성별|남자|여자|남|여|비고|학년|반|학반|재학|전입|전출|휴학|자퇴|생년월일|연락처)$/;
+const isNameCell=v=>!!v&&!NAME_STOP.test(v)&&(/^[가-힣]{2,5}$/.test(v)||/^[A-Za-z][A-Za-z .'-]{1,30}$/.test(v));
+const noOf=v=>{const m=/^(\d{1,3})\s*번?$/.exec(v||'');return m?Number(m[1]):null};
+function textToRows(t){
+  return String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+    .map(l=>l.includes('\t')?l.split('\t'):l.includes(',')?l.split(','):l.split(/\s+/));
 }
+function rosterFromRows(rows){
+  const R=rows.map(r=>(Array.isArray(r)?r:[r]).map(v=>String(v??'').replace(/\s+/g,' ').trim()));
+  let h=-1,nameCol=-1,noCol=-1,gCol=-1,cCol=-1;
+  for(let i=0;i<Math.min(R.length,20);i++){
+    const nc=R[i].findIndex(v=>/^(성\s?명|이\s?름|학생\s?이름|학생명)$/.test(v));
+    if(nc>=0){
+      h=i;nameCol=nc;
+      noCol=R[i].findIndex(v=>/^(번\s?호|출석\s?번호|학생\s?번호|번)$/.test(v));
+      gCol=R[i].findIndex(v=>/^학\s?년$/.test(v));
+      cCol=R[i].findIndex(v=>/^(반|학\s?반)$/.test(v));
+      break;
+    }
+  }
+  const raw=[],Gs=new Set(),Cs=new Set();
+  if(h>=0){
+    for(const r of R.slice(h+1)){
+      const name=r[nameCol];
+      if(!name||/^\d+$/.test(name)||NAME_STOP.test(name))continue;
+      raw.push({no:noCol>=0?noOf(r[noCol]):null,name});
+      if(gCol>=0&&/\d/.test(r[gCol]||''))Gs.add(r[gCol].replace(/\D/g,''));
+      if(cCol>=0&&/\d/.test(r[cCol]||''))Cs.add(r[cCol].replace(/\D/g,''));
+    }
+  }else{
+    for(const r of R){
+      const nums=r.map(noOf).filter(n=>n!=null),names=r.filter(isNameCell);
+      if(!names.length)continue;
+      if(nums.length)raw.push({no:nums[0],name:names[0]});
+      else names.forEach(n=>raw.push({no:null,name:n}));
+    }
+  }
+  // 번호가 없거나 겹치면 뒤에 이어서 붙여요
+  const used=new Set(),out=raw.map(s=>{if(s.no>0&&!used.has(s.no)){used.add(s.no);return s}return {...s,no:null}});
+  let next=used.size?Math.max(...used):0;
+  out.forEach(s=>{if(s.no==null)s.no=++next});
+  out.sort((a,b)=>a.no-b.no);
+  return {list:out,grade:Gs.size===1?[...Gs][0]:'',cls:Cs.size===1?[...Cs][0]:''};
+}
+const parseRoster=t=>rosterFromRows(textToRows(t)).list;
+const rosterSummary=r=>r.length?`${r.length}명 읽었어요 · ${r[0].no}번 ${r[0].name} ~ ${r[r.length-1].no}번 ${r[r.length-1].name}`:'';
 $('#paste-ta').addEventListener('input',e=>{
-  const r=parseRoster(e.target.value);
-  $('#paste-n').textContent=r.length?`${r.length}명 읽었어요 · ${r[0].no}번 ${r[0].name} ~ ${r[r.length-1].no}번 ${r[r.length-1].name}`:'한 줄에 한 명씩이에요.';
+  $('#paste-n').textContent=rosterSummary(parseRoster(e.target.value))||'한 줄에 한 명씩이에요.';
 });
+
+/* 엑셀 파일: 이 컴퓨터 안에서만 읽어요(서버로 보내지 않아요). xlsx·xls는 SheetJS(vendor/), csv는 직접 읽어요. */
+let xlsxP=null,pickTarget='paste-ta';
+function loadXLSX(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(!xlsxP)xlsxP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='vendor/xlsx.full.min.js';s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxP=null;rej(new Error('load'))};document.head.append(s)});
+  return xlsxP;
+}
+async function readRosterFile(file){
+  const buf=await file.arrayBuffer();
+  if(/\.(csv|txt)$/i.test(file.name)){
+    let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){text=new TextDecoder('euc-kr').decode(buf)}
+    return rosterFromRows(textToRows(text));
+  }
+  const X=await loadXLSX();
+  const wb=X.read(buf,{type:'array'});
+  let best={list:[],grade:'',cls:''};
+  for(const sn of wb.SheetNames){ // 이름이 가장 많이 나오는 시트를 골라요
+    const r=rosterFromRows(X.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''}));
+    if(r.list.length>best.list.length)best=r;
+  }
+  return best;
+}
+async function handleRosterFile(f,target){
+  const toPaste=target==='paste-ta',ta=$('#'+target),msg=toPaste?$('#paste-n'):$('#s-roster-msg');
+  if(!ta||!msg)return;
+  msg.textContent=`${f.name} 읽는 중…`;
+  try{
+    const res=await readRosterFile(f);
+    if(!res.list.length){msg.textContent=`${f.name}에서 이름을 찾지 못했어요. '성명' 또는 '이름' 칸이 있는지 확인해 주세요.`;return}
+    ta.value=res.list.map(s=>s.no+'\t'+s.name).join('\n');
+    if(toPaste){
+      if(res.grade&&!$('#paste-grade').value)$('#paste-grade').value=res.grade;
+      if(res.cls&&!$('#paste-cls').value)$('#paste-cls').value=res.cls;
+    }
+    msg.textContent=`엑셀에서 ${rosterSummary(res.list)}. 아래 칸에서 확인하고 고칠 수 있어요.`;
+  }catch(err){
+    msg.textContent=navigator.onLine||window.XLSX?`${f.name}을 읽지 못했어요. 엑셀(.xlsx·.xls)이나 .csv 파일인지 확인해 주세요.`:'엑셀을 읽는 도구를 아직 못 받았어요. 인터넷이 될 때 다시 해 주세요.';
+  }
+}
+$('#xlsx-in').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)handleRosterFile(f,pickTarget);e.target.value=''});
+function dropZone(el,target){
+  if(!el)return;
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag')});
+  el.addEventListener('dragleave',()=>el.classList.remove('drag'));
+  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag');const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleRosterFile(f,target)});
+}
+dropZone($('#paste'),'paste-ta');
+// 놓을 곳 밖에 파일을 떨어뜨려도 브라우저가 파일을 열며 앱을 떠나지 않게
+addEventListener('dragover',e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files'))e.preventDefault()});
+addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length)e.preventDefault()});
 function enterBoard(){
   st.view='day';st.date=START_DAY;st.month=monthOf(START_DAY);st.dmonth=monthOf(START_DAY);st.only=false;st.focus=null;st.checked=new Set();
   go('board');
@@ -905,7 +992,7 @@ function openSettings(){
     <label>담임 이름<input class="txt" id="s-teacher" value="${esc(s.teacher)}"></label></div></section>`;
   h+=`<section><h4>교시 시작 시각<small>지각·조퇴·결과를 넣을 때 이 시각으로 교시를 채워요</small></h4><div class="sgrid">${PER.slice(0,8).map((p,i)=>`<label>${p}<input type="time" class="txt" data-time="${i}" value="${esc(s.times[i])}"></label>`).join('')}</div></section>`;
   h+=`<section><h4>요일별 시간표<small>과목은 비워도 돼요. '마지막'은 그날 마지막 교시예요</small></h4><div style="overflow-x:auto"><table class="ttbl"><thead><tr><th></th>${[1,2,3,4,5,6,7].map(i=>`<th>${i}교시</th>`).join('')}<th>마지막</th></tr></thead><tbody>${[1,2,3,4,5].map(w=>`<tr><th>${days[w-1]}</th>${[0,1,2,3,4,5,6].map(j=>`<td><input class="txt" data-subj="${w}-${j}" value="${esc((s.subj[w]||[])[j]||'')}" aria-label="${days[w-1]}요일 ${j+1}교시 과목"></td>`).join('')}<td><select data-last="${w}" aria-label="${days[w-1]}요일 마지막 교시">${[4,5,6,7].map(n=>`<option value="${n}" ${Number(s.last[w])===n?'selected':''}>${n}교시</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></section>`;
-  h+=`<section><h4>학생 명단<small>한 줄에 한 명 (번호 이름). 번호가 같으면 기록이 그대로 이어져요</small></h4><textarea id="s-roster">${esc(DB.students.map(x=>x.no+'\t'+x.name).join('\n'))}</textarea></section>`;
+  h+=`<section><h4>학생 명단<small>한 줄에 한 명 (번호 이름). 번호가 같으면 기록이 그대로 이어져요</small></h4><div class="xl-row"><button type="button" class="btn" data-m="xlsx">엑셀 파일로 바꾸기</button><span class="hint" id="s-roster-msg">엑셀 파일을 아래 칸에 끌어다 놓아도 돼요. 저장을 눌러야 바뀌어요.</span></div><textarea id="s-roster">${esc(DB.students.map(x=>x.no+'\t'+x.name).join('\n'))}</textarea></section>`;
   h+=`<section><h4>백업<small>기록은 이 컴퓨터에만 있어요. 가끔 받아 두세요</small></h4><div class="brow"><button type="button" class="btn" data-m="export">백업 파일 받기</button><button type="button" class="btn" data-m="import">백업 불러오기</button><input type="file" id="s-import" accept=".json,application/json" hidden><span class="hint" id="s-msg"></span></div></section>`;
   h+=`<section><h4>모두 지우기</h4><div class="brow"><button type="button" class="btn danger" data-m="wipe">명단과 기록 모두 지우기</button><span class="hint">되돌릴 수 없어요. 먼저 백업을 받아 두세요.</span></div></section>`;
   h+=`</div><div class="modal-f"><button type="button" class="btn" data-m="close">닫기</button><button type="button" class="btn primary" data-m="save">저장</button></div></div></div>`;
@@ -913,6 +1000,7 @@ function openSettings(){
   const m=$('#modal');
   m.addEventListener('click',onModal);
   $('#s-import').addEventListener('change',importFile);
+  dropZone($('#s-roster'),'s-roster');
   $('#s-school').focus();
 }
 function closeSettings(){$('#modal')?.remove()}
@@ -940,6 +1028,7 @@ function onModal(e){
     $('#s-msg').textContent='백업 파일을 내려받았어요.';return;
   }
   if(a==='import')return $('#s-import').click();
+  if(a==='xlsx'){pickTarget='s-roster';return $('#xlsx-in').click()}
   if(a==='wipe'){
     if(!b.classList.contains('sure')){b.classList.add('sure');b.textContent='정말 지울까요? 한 번 더 누르세요';return}
     try{localStorage.removeItem(STORE)}catch(err){}
@@ -994,6 +1083,7 @@ document.addEventListener('click',e=>{
     return;
   }
   if(a==='paste'){$('#paste').hidden=false;$('#paste-ta').focus();return}
+  if(a==='pick-xlsx'){pickTarget=b.dataset.to||'paste-ta';return $('#xlsx-in').click()}
   if(a==='build'){
     const r=parseRoster($('#paste-ta').value);
     if(!r.length){$('#paste-n').textContent='이름을 한 명 이상 붙여 넣어 주세요.';$('#paste-ta').focus();return}
