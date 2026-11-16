@@ -1048,7 +1048,18 @@ ${lines}
 <div class="note2">※ 보고서 제출 기한: 체험학습 종료 후 ( &nbsp;5&nbsp; )일 이내</div>
 </div></div>`;
 }
+/* 결과보고서(별지): 사진·티켓을 붙이는 장 (hwpx 4쪽 마지막 장) */
+function tripAttachPage(t){
+  const lines=Array.from({length:26},()=>'<tr style="height:7.9mm"><td colspan="4"></td></tr>').join('');
+  return `<div class="pg trip"><div class="tp" style="top:24mm;left:22mm;width:166mm">
+<div class="ttl2">「학교장허가 교외체험학습」결과보고서(별지)</div>
+<table class="tt">${cg([20.5,43.7,30.5,71.2])}
+<tr style="height:9.5mm"><td class="k">성 명</td><td>${t.name?tv(t.name):''}</td><td class="k">학년 반</td><td>${tv(t.grade,'n')}학년 ${SP}${tv(t.cls,'n')}반 ${SP}${tv(t.no,'n')}번</td></tr>
+${lines}
+</table></div></div>`;
+}
 function formPages(r,blankType){
+  if(blankType==='체험별지')return [tripAttachPage(tripVals(null))];
   if(blankType==='체험신청')return [tripAppPage(tripVals(null))];
   if(blankType==='체험보고')return [tripRepPage(tripVals(null))];
   if(r&&isTrip(r)){
