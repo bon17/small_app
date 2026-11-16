@@ -14,7 +14,7 @@ const G={'질병':{k:'sick',form:'질병 신고서'},'출석인정':{k:'okd',for
 const GK=Object.keys(G);
 const KINDS=['결석','지각','조퇴','결과'];
 const KCH={'결석':'결','지각':'지','조퇴':'조','결과':'과'};
-const DOCS=['진료확인서','처방전','진단서','학부모 의견서','기타 서류'];
+const DOCS=['진료확인서','처방전','약봉투','진단서','학부모 의견서','기타 서류'];
 const WD='일월화수목금토';
 const STORE='chulgyeol-note:v1';
 const TOUR_KEY='chulgyeol-note:tour-v1';
@@ -93,8 +93,11 @@ const spanOf=r=>schoolDays(r.start,r.days);
 const covers=(r,s)=>spanOf(r).includes(s);
 const recOn=(no,s)=>DB.records.find(r=>r.no===no&&covers(r,s));
 const needsForm=r=>G[r.gubun].form!==null;
-const formWord=r=>r.gubun==='기타'?'의견서':'신고서';
-const owes=r=>{const o=[];if(needsForm(r)&&!r.gotForm)o.push('form');if(r.docs.length&&!r.gotDocs)o.push('docs');return o};
+/* 출석인정 중 사유가 '교외체험학습'이면 서류가 신청서·결과보고서로 바뀌어요 */
+const isTrip=r=>!!r&&r.gubun==='출석인정'&&/교외\s*체험|체험\s*학습/.test(r.reason||'');
+const formWord=r=>isTrip(r)?'신청서':r.gubun==='기타'?'의견서':'신고서';
+const owes=r=>{const o=[];if(needsForm(r)&&!r.gotForm)o.push('form');if(isTrip(r)&&!r.gotReport)o.push('report');if(!isTrip(r)&&r.docs.length&&!r.gotDocs)o.push('docs');return o};
+const oweWord=(r,w)=>w==='form'?formWord(r):w==='report'?'보고서':(r.docs[0]+(r.docs.length>1?' 외':''));
 const owedCount=()=>DB.records.reduce((n,r)=>n+owes(r).length,0);
 const inMonth=(r,mo)=>spanOf(r).some(x=>x.startsWith(mo));
 const amount=(r,mo)=>r.kind==='결석'?spanOf(r).filter(x=>x.startsWith(mo)).length:1;
@@ -140,20 +143,21 @@ function sampleDB(){
   d.records=[
     R(3,t,'질병','결과',{periods:[3,4],reason:'병원 진료',docs:['진료확인서']}),
     R(8,t,'질병','결석',{reason:'감기',docs:['처방전']}),
-    R(14,t,'질병','지각',{periods:[0,1],time:'09:40',gotForm:true}),
-    R(21,t,'출석인정','조퇴',{periods:from(6,t),time:'14:50',reason:'교내 대회 참가',docs:['기타 서류'],gotForm:true}),
-    R(25,t,'미인정','지각',{periods:[0],time:'09:05'}),
-    R(25,b(3),'미인정','지각',{periods:[0],time:'09:08'}),
-    R(25,b(8),'미인정','지각',{periods:[0,1],time:'09:30'}),
+    R(14,t,'질병','지각',{periods:[0,1],gotForm:true}),
+    R(21,t,'출석인정','조퇴',{periods:from(6,t),reason:'교내 대회 참가',docs:['기타 서류'],gotForm:true}),
+    R(25,t,'미인정','지각',{periods:[0]}),
+    R(25,b(3),'미인정','지각',{periods:[0]}),
+    R(25,b(8),'미인정','지각',{periods:[0,1]}),
     R(5,b(3),'질병','결석',{days:3,reason:'장염',docs:['진료확인서']}),
-    R(2,b(8),'질병','조퇴',{periods:from(5,b(8)),time:'13:50',reason:'두통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(7)}),
+    R(2,b(8),'질병','조퇴',{periods:from(5,b(8)),reason:'두통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(7)}),
     R(11,b(6),'기타','결석',{reason:'가정 사정',docs:['학부모 의견서'],gotForm:true,gotDocs:true,printed:b(6)}),
     R(17,b(4),'미인정','결석'),
     R(9,b(7),'출석인정','결석',{days:3,reason:'경조사(조부 상)',docs:['기타 서류'],gotForm:true,printed:b(7)}),
-    R(20,b(9),'질병','지각',{periods:[0],time:'09:10',gotForm:true,printed:b(9)}),
+    R(20,b(9),'질병','지각',{periods:[0],gotForm:true,printed:b(9)}),
     R(26,b(1),'질병','결과',{periods:[5],reason:'병원 진료',docs:['진료확인서']}),
     R(3,b(5),'질병','결석',{reason:'감기',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
-    R(14,b(5),'질병','조퇴',{periods:from(6,b(5)),time:'14:40',reason:'복통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
+    R(14,b(5),'질병','조퇴',{periods:from(6,b(5)),reason:'복통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
+    R(16,b(6),'출석인정','결석',{days:2,reason:'교외체험학습',gotForm:true,printed:b(9)}),
   ];
   // 전학 예시: 27번은 전출, 29번은 전입
   const s27=d.students.find(s=>s.no===27);if(s27)s27.left=b(2);
@@ -199,7 +203,7 @@ function buildArt(){
   const cells=()=>[3,4,5,6,7,8,9,10].map(c=>`<i style="grid-column:${c}"></i>`).join('');
   const rows=[
     {no:5,nm:'남하람',run:{c:'3/11',t:'t-sick',lab:'질병결석'}},
-    {no:6,nm:'노유찬',run:{c:'8/11',t:'t-sick',lab:'질병조퇴 · 13:42',live:true},cur:8},
+    {no:6,nm:'노유찬',run:{c:'8/11',t:'t-sick',lab:'질병조퇴',live:true},cur:8},
     {no:7,nm:'류도아'},
     {no:8,nm:'문채윤',run:{c:'3/5',t:'t-bad',lab:'미인정지각'}},
   ];
@@ -403,8 +407,9 @@ function statusCells(r,pre){
   let f,d;
   const fw=formWord(r);
   if(!needsForm(r)) f='<span class="na">신고서 없음</span>';
-  else f=`<button type="button" class="pill ${r.gotForm?'done':'todo'}" data-act="recv" data-id="${r.id}" data-what="form"><span class="dot"></span>${pre?`<span class="pre">${fw}</span>`:''}${r.gotForm?'받음':'안 받음'}</button>`;
-  if(!r.docs.length) d=pre?'':'<span class="na">—</span>';
+  else f=`<button type="button" class="pill ${r.gotForm?'done':'todo'}" data-act="recv" data-id="${r.id}" data-what="form"><span class="dot"></span>${pre||isTrip(r)?`<span class="pre">${fw}</span>`:''}${r.gotForm?'받음':'안 받음'}</button>`;
+  if(isTrip(r)) d=`<button type="button" class="pill ${r.gotReport?'done':'todo'}" data-act="recv" data-id="${r.id}" data-what="report"><span class="dot"></span><span class="pre">보고서</span>${r.gotReport?'받음':'안 받음'}</button>`;
+  else if(!r.docs.length) d=pre?'':'<span class="na">—</span>';
   else d=`<button type="button" class="pill ${r.gotDocs?'done':'todo'}" data-act="recv" data-id="${r.id}" data-what="docs" title="${esc(r.docs.join(', '))}"><span class="dot"></span>${esc(r.docs[0])}${r.docs.length>1?` 외 ${r.docs.length-1}`:''}${pre?(r.gotDocs?' 받음':' 안 받음'):''}</button>`;
   return [f,d];
 }
@@ -489,7 +494,7 @@ function renderMonth(){
     let o='';
     for(const r of rs){
       const ow=owes(r);if(!ow.length)continue;
-      const what=w=>w==='form'?formWord(r):(r.docs[0]+(r.docs.length>1?' 외':''));
+      const what=w=>oweWord(r,w);
       o+=`<span class="oweR" title="${label(r)}"><em>${mdS(r.start)}</em>${ow.map(w=>`<button type="button" data-act="recv" data-id="${r.id}" data-what="${w}" title="받았으면 누르세요"><i></i>${esc(what(w))}</button>`).join('')}</span>`;
     }
     if(!o&&rs.length) o=rs.some(r=>needsForm(r)||r.docs.length)?'<span class="alldone">✓ 다 받음</span>':'<span class="na">신고서 없음</span>';
@@ -654,8 +659,7 @@ function openPop(no,date,p,anchor){
   const ex=recOn(no,date);
   const pn=p==null||p===''?null:Number(p);
   draft=ex?JSON.parse(JSON.stringify(ex)):{id:null,no,start:date,days:1,gubun:'질병',kind:'결석',periods:[],time:'',reason:'',docs:[],gotForm:false,gotDocs:false};
-  if(!ex)draft.time=pn!=null&&pn<=7?SET().times[pn]:(pn==null&&date===TODAY?nowHM():'');
-  draft.p=pn; // 눌러서 연 교시 (결과일 때 미리 골라 둘 칸)
+  draft.p=pn; // 표의 교시 칸을 눌러 열었으면 그 교시로 미리 채워요
   warn=false;anchorEl=anchor;
   if(anchor&&anchor.tagName==='TD')anchor.classList.add('anchored');
   const c=document.createElement('div');c.className='catch';c.id='catch';
@@ -663,10 +667,8 @@ function openPop(no,date,p,anchor){
   document.body.append(c,pop);
   pop.addEventListener('click',onPop);
   pop.addEventListener('input',e=>{
-    if(e.target.id==='pop-reason'){draft.reason=e.target.value;refreshReasonChips()}
-    if(e.target.id==='pop-time'){draft.time=e.target.value;fillByTime();warn=false;refreshParts()}
+    if(e.target.id==='pop-reason'){draft.reason=e.target.value;refreshReasonChips();refreshParts()}
   });
-  pop.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='pop-time'){e.preventDefault();save_()}});
   popX=null;drawPop();
   pop.focus({preventScroll:true});
 }
@@ -676,26 +678,27 @@ function closePop(){
   $$('td.anchored').forEach(t=>t.classList.remove('anchored'));
   draft=null;
 }
-/* 넣은 시각에 맞춰 교시 채우기 — 선생님이 칸을 눌러 더하거나 뺄 수 있어요 */
-function fillByTime(){
-  const vp=validP(draft.start),cp=curP(draft.time,draft.start);
-  if(draft.kind==='결석'){draft.periods=[];return}
-  /* 결과는 시각 없이 교시만: 표의 칸을 눌러 열었으면 그 교시를 미리 골라 둬요 */
-  if(draft.kind==='결과'){const p=draft.p;draft.periods=p!=null&&p>=0&&p<=8&&!offP(draft.start,p)?[p]:[];return}
-  if(cp==null){draft.periods=draft.kind==='지각'?[0]:[];return}
-  if(draft.kind==='지각')draft.periods=cp<0?[]:vp.filter(i=>i<=cp&&i<8);
-  if(draft.kind==='조퇴')draft.periods=cp<0?vp.slice():vp.filter(i=>i>=cp);
+/* 교시 한 번에 채우기
+   - 지각: 누른 교시까지 (조회~그 교시)   - 조퇴: 누른 교시부터 (그 교시~종례)   - 결과: 누른 교시만 하나씩
+   - 같은 칸을 다시 누르면 비워져요. 표의 교시 칸을 눌러 열었으면 그 교시로 미리 채워요. */
+const upTo=(s,q)=>validP(s).filter(i=>i<=q);
+const fromQ=(s,q)=>validP(s).filter(i=>i>=q);
+function fillByP(){
+  const p=draft.p;
+  if(draft.kind==='결석'||p==null||!validP(draft.start).includes(p)){draft.periods=[];return}
+  draft.periods=draft.kind==='지각'?upTo(draft.start,p):draft.kind==='조퇴'?fromQ(draft.start,p):[p];
 }
-function tapPeriod(q){draft.periods=draft.periods.includes(q)?draft.periods.filter(i=>i!==q):[...draft.periods,q].sort((a,b)=>a-b)}
-function timeHint(){
-  if(warn)return '교시를 하나 이상 골라 주세요';
-  if(draft.kind==='결과')return '빠진 교시를 눌러 골라요. 여러 개 고를 수 있어요.';
-  if(!draft.time)return '시각을 넣으면 교시가 자동으로 체크돼요. 칸을 눌러 고칠 수도 있어요.';
-  const cp=curP(draft.time,draft.start),T=SET().times;
-  if(cp<0)return `${draft.time}은 조회(${T[0]}) 전이에요. 칸을 눌러 고칠 수 있어요.`;
-  if(cp===0)return `${draft.time}은 조회(${T[0]}~) 시간이에요. 칸을 눌러 더하거나 뺄 수 있어요.`;
-  return `${draft.time}은 ${cp}교시(${T[cp]} 시작) 시간이에요. 칸을 눌러 더하거나 뺄 수 있어요.`;
+function tapPeriod(q){
+  const same=(a,b)=>a.length===b.length&&a.every((x,i)=>x===b[i]);
+  if(draft.kind==='지각'){const want=upTo(draft.start,q);draft.periods=same(draft.periods,want)?[]:want;return}
+  if(draft.kind==='조퇴'){const want=fromQ(draft.start,q);draft.periods=same(draft.periods,want)?[]:want;return}
+  draft.periods=draft.periods.includes(q)?draft.periods.filter(i=>i!==q):[...draft.periods,q].sort((a,b)=>a-b);
 }
+function periodHint(){
+  if(warn)return '교시를 골라 주세요';
+  return {'지각':'누른 교시까지 조회부터 한 번에 채워져요. 같은 칸을 다시 누르면 비워져요.','조퇴':'누른 교시부터 종례까지 한 번에 채워져요. 같은 칸을 다시 누르면 비워져요.','결과':'빠진 교시를 하나씩 눌러 골라요.'}[draft.kind]||'';
+}
+const timeHint=periodHint;
 const perChips=()=>PER.map((_,i)=>{const off=offP(draft.start,i),tm=i<=7?SET().times[i]:'';return `<button type="button" class="ch p${draft.periods.includes(i)?' on':''}" data-pop="period" data-v="${i}" ${off?'disabled title="이날은 이 교시가 없어요"':''}><span>${PCH[i]}</span>${tm?`<small>${tm}</small>`:''}</button>`}).join('');
 function summary(){
   const g=G[draft.gubun];
@@ -707,13 +710,26 @@ function summary(){
     const pt=periodText(draft.periods,draft.start);
     when=`${md(draft.start)}${draft.time?' '+draft.time:''} · ${pt||'교시를 골라 주세요'}`;
   }
-  const form=g.form?`${g.form} ${draft.gubun==='기타'?'2장':'1장'}`:'신고서 없이 출결판에만 남아요';
+  const form=isTrip(draft)?'교외체험학습 신청서(통보서)·결과보고서':g.form?`${g.form} ${draft.gubun==='기타'?'2장':'1장'}`:'신고서 없이 출결판에만 남아요';
   return `<span class="t-${g.k}"><b>${draft.gubun}${draft.kind}</b></span> · ${when}<br>${form}`;
+}
+function docRowHTML(){
+  if(draft.gubun==='미인정')return '';
+  if(isTrip(draft))return '<span class="k">서류</span><div class="hint trip-note">교외체험학습은 <b>신청서</b>와 <b>결과보고서</b>를 챙겨요. 서류함에서 학교 양식으로 뽑을 수 있어요.</div>';
+  return `<span class="k">서류</span><div><div class="chips">${DOCS.map(x=>`<button type="button" class="ch xs${draft.docs.includes(x)?' on':''}" data-pop="doc" data-v="${x}">${x}</button>`).join('')}</div><div class="hint">안 골라도 돼요. 비워 두면 신고서에 빈칸으로 나가요.</div></div>`;
+}
+function recvHTML(){
+  if(!G[draft.gubun].form)return '';
+  if(isTrip(draft))return `<button type="button" class="tog${draft.gotForm?' on':''}" data-pop="gotForm"><i>✓</i>신청서 받음</button><button type="button" class="tog${draft.gotReport?' on':''}" data-pop="gotReport"><i>✓</i>보고서 받음</button>`;
+  return `<button type="button" class="tog${draft.gotForm?' on':''}" data-pop="gotForm"><i>✓</i>${draft.gubun==='기타'?'의견서':'신고서'} 받음</button><button type="button" class="tog${draft.gotDocs?' on':''}" data-pop="gotDocs" ${draft.docs.length?'':'disabled title="고른 서류가 없어요"'}><i>✓</i>서류 받음</button>`;
 }
 function refreshParts(){
   const p=$('#pop-per');if(p)p.innerHTML=perChips();
-  const h=$('#pop-thint');if(h){h.textContent=timeHint();h.classList.toggle('warn',warn)}
+  const h=$('#pop-thint');if(h){h.textContent=periodHint();h.classList.toggle('warn',warn)}
   const s=$('#pop-sum');if(s)s.innerHTML='→ '+summary();
+  // 사유를 '교외체험학습'으로 바꾸면 서류 칸과 받음 체크가 바로 바뀌어요
+  const dr=$('#pop-docrow');if(dr&&dr.dataset.trip!==String(isTrip(draft))){dr.dataset.trip=String(isTrip(draft));dr.innerHTML=docRowHTML()}
+  const rv=$('#pop-recv');if(rv){const want=recvHTML();if(rv.dataset.trip!==String(isTrip(draft))){rv.dataset.trip=String(isTrip(draft));rv.innerHTML=want}}
   place();
 }
 function refreshReasonChips(){
@@ -724,24 +740,18 @@ function drawPop(){
   const pop=$('#pop');if(!pop)return;
   if(dropIn&&dropIn.dataset.rs==='pop')closeDrop();
   const s=stu(draft.no),g=G[draft.gubun];
-  const suf={'지각':'에 들어왔어요','조퇴':'에 나갔어요'}[draft.kind];
   let h=`<div class="pop-h"><b>${s.no}번 ${esc(s.name)}</b><span>${md(draft.start)}</span><button type="button" class="icon" data-pop="close" aria-label="닫기">×</button></div><div class="pop-b">`;
   h+=`<div class="row"><span class="k">구분</span><div class="chips">${GK.map((x,i)=>`<button type="button" class="ch g t-${G[x].k}${draft.gubun===x?' on':''}" data-pop="gubun" data-v="${x}" title="숫자 ${i+1}">${x}</button>`).join('')}</div></div>`;
   h+=`<div class="row"><span class="k">종류</span><div class="chips">${KINDS.map(k=>`<button type="button" class="ch${draft.kind===k?' on':''}" data-pop="kind" data-v="${k}">${k}</button>`).join('')}</div></div>`;
   if(draft.kind==='결석'){
     h+=`<div class="row"><span class="k">기간</span><div><span class="step"><button type="button" data-pop="days" data-v="-1" aria-label="하루 줄이기">−</button><output>${draft.days}</output><button type="button" data-pop="days" data-v="1" aria-label="하루 늘리기">+</button></span><span class="unit">일 · 주말은 빼고 세요</span></div></div>`;
   }else{
-    if(draft.kind!=='결과')h+=`<div class="row"><span class="k">시각</span><div class="trow"><input type="time" id="pop-time" class="txt time" value="${draft.time}" aria-label="시각"><span class="suf">${suf}</span><button type="button" class="ch xs" data-pop="now">지금</button></div></div>`;
-    h+=`<div class="row t-${g.k}"><span class="k">교시</span><div><div class="chips" id="pop-per">${perChips()}</div><div class="hint${warn?' warn':''}" id="pop-thint">${timeHint()}</div></div></div>`;
+    h+=`<div class="row t-${g.k}"><span class="k">교시</span><div><div class="chips" id="pop-per">${perChips()}</div><div class="hint${warn?' warn':''}" id="pop-thint">${periodHint()}</div></div></div>`;
   }
   h+=`<div class="row"><span class="k">사유</span><div><input class="txt serif" id="pop-reason" data-rs="pop" value="${esc(draft.reason)}" placeholder="비워 두면 신고서에 빈칸으로 나가요" autocomplete="off"><div class="chips sugg" id="pop-rchips"></div></div></div>`;
-  if(draft.gubun!=='미인정'){
-    h+=`<div class="row"><span class="k">서류</span><div><div class="chips">${DOCS.map(x=>`<button type="button" class="ch xs${draft.docs.includes(x)?' on':''}" data-pop="doc" data-v="${x}">${x}</button>`).join('')}</div><div class="hint">안 골라도 돼요. 비워 두면 신고서에 빈칸으로 나가요.</div></div></div>`;
-  }
+  if(draft.gubun!=='미인정')h+=`<div class="row" id="pop-docrow" data-trip="${isTrip(draft)}">${docRowHTML()}</div>`;
   h+=`</div><div class="result" id="pop-sum">→ ${summary()}</div>`;
-  if(g.form){
-    h+=`<div class="recv"><button type="button" class="tog${draft.gotForm?' on':''}" data-pop="gotForm"><i>✓</i>${draft.gubun==='기타'?'의견서':'신고서'} 받음</button><button type="button" class="tog${draft.gotDocs?' on':''}" data-pop="gotDocs" ${draft.docs.length?'':'disabled title="고른 서류가 없어요"'}><i>✓</i>서류 받음</button></div>`;
-  }
+  if(g.form)h+=`<div class="recv" id="pop-recv" data-trip="${isTrip(draft)}">${recvHTML()}</div>`;
   h+=`<div class="pop-f">${draft.id?'<button type="button" class="btn quiet" data-pop="del">지우기</button>':''}<button type="button" class="btn link" data-pop="card">한 달 보기</button><span class="spacer"></span>${g.form?'<button type="button" class="btn" data-pop="sheet">신고서 보기</button>':''}<button type="button" class="btn primary" data-pop="save">저장</button></div>`;
   h+='<div class="keys"><kbd>1</kbd>~<kbd>4</kbd> 구분 · <kbd>Enter</kbd> 저장 · <kbd>Esc</kbd> 닫기</div>';
   pop.innerHTML=h;
@@ -766,14 +776,14 @@ function onPop(e){
   if(b.tagName==='INPUT')return;
   if(a==='close')return closePop();
   if(a==='gubun'){draft.gubun=v;if(v==='미인정'){draft.docs=[];draft.gotForm=false;draft.gotDocs=false}}
-  if(a==='kind'){draft.kind=v;if(v!=='결석')draft.days=1;if(v!=='결석'&&!draft.time&&draft.start===TODAY)draft.time=nowHM();fillByTime();warn=false}
-  if(a==='now'){draft.time=nowHM();fillByTime();warn=false}
+  if(a==='kind'){draft.kind=v;if(v!=='결석')draft.days=1;fillByP();warn=false}
   if(a==='period'){tapPeriod(Number(v));warn=false;refreshParts();const again=$(`#pop [data-pop="period"][data-v="${v}"]`);if(again)again.focus({preventScroll:true});return}
   if(a==='days')draft.days=Math.min(40,Math.max(1,draft.days+Number(v)));
   if(a==='reason'){draft.reason=draft.reason===v?'':v;const inp=$('#pop-reason');if(inp)inp.value=draft.reason;refreshReasonChips();refreshParts();return}
   if(a==='doc'){draft.docs=draft.docs.includes(v)?draft.docs.filter(x=>x!==v):[...draft.docs,v];if(!draft.docs.length)draft.gotDocs=false}
   if(a==='gotForm')draft.gotForm=!draft.gotForm;
   if(a==='gotDocs')draft.gotDocs=!draft.gotDocs;
+  if(a==='gotReport')draft.gotReport=!draft.gotReport;
   if(a==='save')return save_();
   if(a==='del')return del_();
   if(a==='card'){const no=draft.no,mo=monthOf(draft.start);closePop();return openDrawer(no,mo)}
@@ -790,6 +800,7 @@ function save_(quiet){
   delete r.p;
   if(r.kind==='결석'){r.periods=[];r.time=''}else r.days=1;
   if(r.kind==='결과')r.time='';
+  if(isTrip(r)){r.docs=[];r.gotDocs=false}else delete r.gotReport;
   if(!r.docs.length)r.gotDocs=false;
   if(!needsForm(r))r.gotForm=false;
   const span=spanOf(r);
@@ -829,7 +840,10 @@ function docFiltered(){
   if(st.dfilter==='owe')return all.filter(r=>owes(r).length);
   return all;
 }
-const pagesOf=r=>{if(r.gubun!=='기타')return 1;const p=opPick(r);return (p.parent?1:0)+(p.teacher?1:0)};
+const pagesOf=r=>{
+  if(isTrip(r)){const q=tripPick(r);return (q.app?1:0)+(q.rep?1:0)}
+  if(r.gubun!=='기타')return 1;const p=opPick(r);return (p.parent?1:0)+(p.teacher?1:0);
+};
 function renderDocs(){
   const[y,m]=st.dmonth.split('-');
   $('#dtitle').textContent=`${y}년 ${Number(m)}월`;
@@ -850,8 +864,8 @@ function renderDocList(){
     $('#dl').innerHTML=list.map(r=>{
       const s=stu(r.no)||{no:r.no,name:'(명단에 없음)'};
       const ow=owes(r);
-      const st2=ow.length?ow.map(w=>`<span class="o">● ${w==='form'?formWord(r):'서류'} 안 받음</span>`).join(''):'<span class="ok">✓ 다 받음</span>';
-      return `<li class="di${r.id===st.focus?' on':''}" data-act="dfocus" data-id="${r.id}"><input type="checkbox" data-act="dcheck" data-id="${r.id}" ${st.checked.has(r.id)?'checked':''} aria-label="${esc(s.name)} 인쇄할 것으로 고르기"><div class="di-top"><b>${esc(s.name)}</b><span class="no">${s.no}번</span><span class="tag t-${kOf(r)}">${label(r)}</span></div><div class="di-sub"><span>${r.kind==='결석'&&r.days>1?`${mdS(r.start)}~${mdS(spanOf(r).slice(-1)[0])}`:mdS(r.start)}</span>${r.printed?`<span class="pr">인쇄함 ${mdS(r.printed)}</span>`:'<span>안 뽑음</span>'}${st2}</div></li>`;
+      const st2=ow.length?ow.map(w=>`<span class="o">● ${w==='form'?formWord(r):w==='report'?'보고서':'서류'} 안 받음</span>`).join(''):'<span class="ok">✓ 다 받음</span>';
+      return `<li class="di${r.id===st.focus?' on':''}" data-act="dfocus" data-id="${r.id}"><input type="checkbox" data-act="dcheck" data-id="${r.id}" ${st.checked.has(r.id)?'checked':''} aria-label="${esc(s.name)} 인쇄할 것으로 고르기"><div class="di-top"><b>${esc(s.name)}</b><span class="no">${s.no}번</span><span class="tag t-${kOf(r)}">${isTrip(r)?'교외체험학습':label(r)}</span></div><div class="di-sub"><span>${r.kind==='결석'&&r.days>1?`${mdS(r.start)}~${mdS(spanOf(r).slice(-1)[0])}`:mdS(r.start)}</span>${r.printed?`<span class="pr">인쇄함 ${mdS(r.printed)}</span>`:'<span>안 뽑음</span>'}${st2}</div></li>`;
     }).join('');
   }
   const n=[...st.checked].map(rec).filter(Boolean).reduce((a,r)=>a+pagesOf(r),0);
@@ -881,7 +895,16 @@ function renderEdit(){
   const r=rec(st.focus),box=$('#dv-edit'),who=$('#dv-who');
   if(!r){box.innerHTML='';who.innerHTML='';return}
   const s=stu(r.no)||{no:r.no,name:'(명단에 없음)'};
-  who.innerHTML=`<b>${s.no}번 ${esc(s.name)}</b><span>${label(r)} · ${whenText(r)}${r.kind!=='결석'?' · '+esc(periodText(r.periods,r.start)):''}</span>`;
+  who.innerHTML=`<b>${s.no}번 ${esc(s.name)}</b><span>${label(r)}${isTrip(r)?' (교외체험학습)':''} · ${whenText(r)}${r.kind!=='결석'?' · '+esc(periodText(r.periods,r.start)):''}</span>`;
+  if(isTrip(r)){
+    const q=tripPick(r);
+    let h='';
+    if(r.kind==='결석')h+=`<label class="fld"><span>총 ( )일간</span><input type="number" class="txt" id="e-days" min="0" max="99" value="${esc(daysOf(r))}"></label>`;
+    h+=`<label class="fld"><span>사유</span><input class="txt serif" id="e-reason" data-rs="rec" data-id="${r.id}" value="${esc(r.reason)}" autocomplete="off"></label>`;
+    h+=`<div class="fld wide"><span>뽑을 장 (신청서는 체험 전에, 결과보고서는 다녀온 뒤에)</span><div class="brow"><button type="button" class="tog${q.app?' on':''}" data-act="oppage" data-w="app"><i>✓</i>신청서 (통보서 포함)</button><button type="button" class="tog${q.rep?' on':''}" data-act="oppage" data-w="rep"><i>✓</i>결과보고서</button></div></div>`;
+    h+=`<div class="fld-opts"><span class="hint">통보서의 '금회까지 누적 사용 기간'은 이번 학년도 체험학습 일수(${tripUsed(r)}일)로 채워져요.</span><span class="spacer"></span><button type="button" class="tog${r.gotForm?' on':''}" data-act="recv" data-id="${r.id}" data-what="form"><i>✓</i>신청서 받음</button><button type="button" class="tog${r.gotReport?' on':''}" data-act="recv" data-id="${r.id}" data-what="report"><i>✓</i>보고서 받음</button></div>`;
+    box.innerHTML=h;return;
+  }
   let h=`<label class="fld"><span>작성일 (맨 아래 날짜)</span><div class="inl"><input type="date" class="txt" id="e-written" value="${writtenOf(r)||''}"><button type="button" class="small" data-act="e-clear">비우기</button></div></label>`;
   if(r.kind==='결석')h+=`<label class="fld"><span>기간 ( )일간</span><input type="number" class="txt" id="e-days" min="0" max="99" value="${esc(daysOf(r))}"></label>`;
   else h+=`<label class="fld"><span>기간 ( )교시${ptail(r.kind)}</span><input class="txt" id="e-period" value="${esc(periodOf(r))}" placeholder="비워 두면 빈칸으로 나가요" autocomplete="off"></label>`;
@@ -946,7 +969,94 @@ function formVals(r,blankType){
   const range=F.m===L.m?(F.d===L.d?String(F.d):`${F.d}~${L.d}`):`${F.d}~${L.m}/${L.d}`;
   return {type:r.gubun,grade:s.grade,cls:s.cls,no:who.no,name:nameSp(who.name),kind:r.kind,F,L,W,n:daysOf(r),ptxt:r.kind==='결석'?'':periodOf(r),reason:r.reason||'',docs:docsOf(r),school:s.school,teacher:nameSp(s.teacher),note:r.teacherNote||'',range};
 }
+/* 교외체험학습 신청서(통보서 포함)·결과보고서 — 학교 양식 hwpx 4쪽의 표 칸 너비(mm)를 그대로 옮김 */
+const T16=[26.4,11.2,26.2,4.0,5.0,13.7,22.0,14.3,9.2,0.3,8.8,3.0,5.0,7.0,9.3,14.5];
+const T6=[37.3,11.2,27.2,18.9,20.2,64.5];
+const T7=[23.5,33.7,35.5,4.0,23.1,23.1,23.1];
+const cg=ws=>`<colgroup>${ws.map(w=>`<col style="width:${w}mm">`).join('')}</colgroup>`;
+const tv=(x,cls='')=>`<span class="tv ${cls}">${esc(x)}</span>`;
+const SP='&nbsp;&nbsp;&nbsp;';
+const tripPick=r=>({app:r.opApp!==false,rep:r.opRep!==false});
+const schoolYearStart=d=>{const y=+d.slice(0,4),m=+d.slice(5,7);return `${m>=3?y:y-1}-03-01`};
+/* 금회까지 누적 사용 기간: 이번 학년도(3월~) 하루 단위 체험학습 일수 */
+function tripUsed(r){
+  const ys=schoolYearStart(r.start);
+  return DB.records.filter(x=>x.no===r.no&&isTrip(x)&&x.kind==='결석'&&x.start>=ys&&x.start<=r.start).reduce((n,x)=>n+(Number(daysOf(x))||0),0);
+}
+function tripVals(r){
+  const v=formVals(r,'체험');
+  return {...v,half:!!r&&r.kind!=='결석',full:!!r&&r.kind==='결석',used:r?String(tripUsed(r)):''};
+}
+function tripAppPage(t){
+  const yr=t.F.y,sch=t.school||'○○학교';
+  const range=t.full?`${yr}년 ${tv(t.F.m)}월 ${tv(t.F.d)}일 &nbsp;~&nbsp; ${tv(t.L.m)}월 ${tv(t.L.d)}일`:`${yr}년 ${SP}월 ${SP}일 &nbsp;~&nbsp; ${SP}월 ${SP}일`;
+  const tot=t.full?tv(t.n):SP;
+  const halfDate=t.half?`${yr} 년 ${tv(t.F.m)} 월 ${tv(t.F.d)} 일`:`${yr} 년 ${SP}월 ${SP}일`;
+  const people=w=>`<tr style="height:5.4mm"><td class="k">${w}</td><td colspan="4"></td><td class="k">관계</td><td></td><td colspan="2" class="k">휴대폰</td><td colspan="7"></td></tr>`;
+  return `<div class="pg trip"><div class="tp" style="top:24mm;left:15mm;width:180mm">
+<table class="tt">${cg(T16)}
+<tr style="height:5.6mm"><td colspan="7" rowspan="2" class="ttl">「학교장허가 교외체험학습」신청서</td><td colspan="3" class="k"></td><td colspan="4" class="k">담임</td><td colspan="2" class="k">학년부장</td></tr>
+<tr style="height:4.4mm"><td colspan="3" rowspan="2"></td><td colspan="4" rowspan="2"></td><td colspan="2" rowspan="2"></td></tr>
+<tr style="height:8.5mm"><td colspan="7" class="nt">※신청서 제출 기한 ( 3 )일 이전, 보고서 제출 기한 ( 5 )일 이내</td></tr>
+<tr style="height:5.6mm"><td class="k">성 명</td><td colspan="3">${tv(t.name)}</td><td colspan="4" class="k">${tv(t.grade,'n')}학년 ${tv(t.cls,'n')}반 ${tv(t.no,'n')}번</td><td colspan="3" class="k">휴대폰</td><td colspan="5"></td></tr>
+<tr style="height:6.2mm"><td rowspan="4" class="k">본교 출석인정기간<br>연간(20)일</td><td rowspan="3" class="k">신청<br>기간</td><td class="k">1일 기준</td><td colspan="9">${range}</td><td colspan="4" rowspan="3">총 (${tot})일간</td></tr>
+<tr style="height:4.8mm"><td rowspan="2" class="k">반일 기준<br><small>(4시간 미만)</small></td><td colspan="3">날짜</td><td colspan="6">${halfDate}</td></tr>
+<tr style="height:4.8mm"><td colspan="3">시간</td><td colspan="6">시 ${SP}분 ~ ${SP}시 ${SP}분</td></tr>
+<tr style="height:8.7mm"><td colspan="12" class="sm">우리 학교 학교장허가 교외체험학습 세부 규칙 및 불허기간 확인<br><b>※ 필요시 담임교사와의 사전 협의 또는 문의</b></td><td colspan="3">( ○ , × )</td></tr>
+<tr style="height:5.8mm"><td class="k">학습형태</td><td colspan="15" class="l">∘가족동반여행( &nbsp; ) ∘친·인척 방문( &nbsp; ) ∘답사∙견학 활동( &nbsp; ) ∘체험활동( &nbsp; )</td></tr>
+<tr style="height:5.4mm"><td class="k">목적지</td><td colspan="6"></td><td colspan="2" class="k"><small>(숙박시)</small> 숙박장소</td><td colspan="7"></td></tr>
+${people('보호자명')}${people('인솔자명')}
+<tr style="height:6mm"><td class="k">목 적</td><td colspan="15"></td></tr>
+<tr style="height:37.2mm"><td class="k">교외체험<br>학습계획</td><td colspan="15"></td></tr>
+<tr style="height:9.6mm"><td class="k">학생안전</td><td colspan="14" class="l sm">교외체험학습이 5일 이상 연속될 경우 학생의 건강과 안전을 위하여<br>주 1회 이상 학생이 담임(담당)교사와 직접 통화하겠습니다.</td><td class="sm">□<br>동의함</td></tr>
+<tr><td colspan="16" class="sig"><p class="c">위와 같이 「학교장허가 교외체험학습」을 신청합니다.</p><p class="c">${yr} 년 ${SP}월 ${SP}일</p><p class="r">보호자 : <span class="sgv"></span>(인)</p><p class="r">학생 : <span class="sgv">${tv(t.name)}</span>(인)</p><p class="to">${esc(sch)}장 &nbsp;귀하</p></td></tr>
+</table>
+<div class="cut">-----------------------------------------<small>(이하 담임 작성)</small>-----------------------------------</div>
+<div class="tt2">학교장허가 교외체험학습 통보서</div>
+<table class="tt">${cg(T6)}
+<tr style="height:6.9mm"><td class="k">성 명</td><td colspan="3">${tv(t.name)}</td><td class="k">학년 반</td><td>제 ${tv(t.grade,'n')} 학년 ${tv(t.cls,'n')} 반 ${tv(t.no,'n')} 번</td></tr>
+<tr style="height:6.9mm"><td rowspan="2" class="k">본교<br>출석 인정 기간<br>연간 (20)일</td><td rowspan="2" class="k">신청<br>기간</td><td class="k">1일 기준</td><td colspan="3">${range}( ${tot} ) 일간</td></tr>
+<tr style="height:10.9mm"><td class="k">반일 기준<br><small>(4시간 미만)</small></td><td colspan="3">${t.half?`${yr} 년 ${tv(t.F.m)} 월 ${tv(t.F.d)} 일`:`20 ${SP}년 ${SP}월 ${SP}일`}<br>시 ${SP}분 ~ ${SP}시 ${SP}분( ${SP}시간)</td></tr>
+<tr style="height:22.1mm"><td class="k">금회까지<br>누적 사용 기간<br>( ${t.used!==''?tv(t.used):SP} )일</td><td colspan="5" class="sig2"><p>위와 같이 허가 처리되었음을 알려 드립니다.</p><p>${yr} . ${SP}. ${SP}.</p><p class="r">${esc(sch)} ( ${tv(t.grade)} )학년 ( ${tv(t.cls)} )반 담임교사 : <span class="sgv">${tv(t.teacher)}</span>(인)</p><p class="l">보호자님 귀하</p></td></tr>
+</table>
+<div class="notes"><p>※ 보호자가 신청서를 제출하였다 하여 체험학습이 허가된 것이 아니며 담임교사로부터 반드시 최종 허가 <b>여부 통보서(또는 문자)를 받은 후 실시</b>해야 합니다.</p><p>※ 신청서 제출 기한은 ( 3 )일 이전, 보고서 제출 기한은 ( 5 )일 이내</p><p>※ 교외체험학습 실시 중에는 보호자와 담임(담당)교사 간 연락체계를 유지하고 사안(사고) 발생 시 보호자는 담임(담당)교사에게 연락을 하도록 합니다.</p><p>※ 교외체험학습이 5일 이상 연속될 경우 주1회 이상 학생이 담임(담당)교사와 직접 통화하여 건강과 안전을 확인시켜야 합니다. 미이행의 경우 시‧군‧구 아동복지과 또는 수사기관에 통보될 수 있음을 알려드립니다.</p></div>
+</div></div>`;
+}
+function tripRepPage(t){
+  const yr=t.F.y,sch=t.school||'○○학교';
+  const range=t.full?`${yr}년 ${tv(t.F.m)}월 ${tv(t.F.d)}일 &nbsp;~&nbsp; ${tv(t.L.m)}월 ${tv(t.L.d)}일 ( ${tv(t.n)} ) 일간`:`${yr}년 ${SP}월 ${SP}일 &nbsp;~&nbsp; ${SP}월 ${SP}일 ( ${SP}) 일간`;
+  const half=`${yr}년 ${t.half?`${tv(t.F.m)}월 ${tv(t.F.d)}일`:`${SP}월 ${SP}일`} &nbsp; 00:00 &nbsp;~&nbsp; 00:00`;
+  const lines=Array.from({length:16},()=>'<tr style="height:5.5mm"><td colspan="7"></td></tr>').join('');
+  return `<div class="pg trip"><div class="tp" style="top:24mm;left:22mm;width:166mm">
+<div class="form2">&lt;서식 2&gt;</div>
+<table class="tt">${cg(T7)}
+<tr style="height:5.6mm"><td colspan="4" rowspan="2" class="ttl">「학교장허가 교외체험학습」결과보고서</td><td class="k">담임</td><td class="k">부장</td><td class="k">교감</td></tr>
+<tr style="height:4.1mm"><td rowspan="2"></td><td rowspan="2"></td><td rowspan="2"></td></tr>
+<tr style="height:4.9mm"><td colspan="4"></td></tr>
+<tr style="height:6.5mm"><td class="k">성 명</td><td>${tv(t.name)}</td><td class="k">학년 반</td><td colspan="4">${tv(t.grade,'n')}학년 ${SP}${tv(t.cls,'n')}반 ${SP}${tv(t.no,'n')}번</td></tr>
+<tr style="height:5.9mm"><td rowspan="2" class="k">기간</td><td class="k">1일 기준</td><td colspan="5">${range}</td></tr>
+<tr style="height:9.1mm"><td class="k">반일 기준<br><small>(4시간 미만)</small></td><td colspan="5">${half}</td></tr>
+<tr style="height:5.9mm"><td rowspan="2" class="k">목적지<br>및 동반자</td><td class="k">목적지</td><td colspan="5"></td></tr>
+<tr style="height:5.2mm"><td class="k">보호자(동반자)</td><td colspan="5"></td></tr>
+<tr style="height:9.8mm"><td class="k">학습형태</td><td colspan="6" class="l">∘가족동반여행( &nbsp; ) ∘친·인척 방문( &nbsp; ) ∘답사∙견학 활동( &nbsp; ) ∘체험활동( &nbsp; )</td></tr>
+<tr style="height:6.9mm"><td class="k">제 &nbsp;목</td><td colspan="6"></td></tr>
+<tr style="height:7.5mm"><td colspan="7" class="l sm">* 교외체험학습을 통해 느낀 점, 배운 점 등을 글, 그림 등으로 학생이 체험 또는 학습한 내용을 기록합니다.<br>(사진, 티켓 등은 별지에 부착)</td></tr>
+${lines}
+<tr style="height:9.5mm"><td colspan="7"></td></tr>
+<tr><td colspan="7" class="sig"><p class="c big">위와 같이「학교장허가 교외체험학습」결과보고서를 제출합니다.</p><p class="c big">${yr} . ${SP}. ${SP}.</p><p class="r">보호자 : <span class="sgv"></span>(인)</p><p class="r">학생 : <span class="sgv">${tv(t.name)}</span>(인)</p><p class="c to">${esc(sch)}장 &nbsp;귀하</p></td></tr>
+</table>
+<div class="note2">※ 보고서 제출 기한: 체험학습 종료 후 ( &nbsp;5&nbsp; )일 이내</div>
+</div></div>`;
+}
 function formPages(r,blankType){
+  if(blankType==='체험신청')return [tripAppPage(tripVals(null))];
+  if(blankType==='체험보고')return [tripRepPage(tripVals(null))];
+  if(r&&isTrip(r)){
+    const q=tripPick(r),t=tripVals(r),out=[];
+    if(q.app)out.push(tripAppPage(t));
+    if(q.rep)out.push(tripRepPage(t));
+    return out;
+  }
   const v=formVals(r,blankType);
   if(blankType==='학부모')return [opinionPage(v,true)];
   if(blankType==='담임')return [opinionPage(v,false)];
@@ -1035,7 +1145,7 @@ function openSettings(){
     <label>학년<input class="txt" id="s-grade" value="${esc(s.grade)}" inputmode="numeric"></label>
     <label>반<input class="txt" id="s-cls" value="${esc(s.cls)}" inputmode="numeric"></label>
     <label>담임 이름<input class="txt" id="s-teacher" value="${esc(s.teacher)}"></label></div></section>`;
-  h+=`<section><h4>교시 시작 시각<small>지각·조퇴·결과를 넣을 때 이 시각으로 교시를 채워요</small></h4><div class="sgrid">${PER.slice(0,8).map((p,i)=>`<label>${p}<input type="time" class="txt" data-time="${i}" value="${esc(s.times[i])}"></label>`).join('')}</div></section>`;
+  h+=`<section><h4>교시 시작 시각<small>출결판 머리글과 입력 창의 교시 칸 아래에 보여요</small></h4><div class="sgrid">${PER.slice(0,8).map((p,i)=>`<label>${p}<input type="time" class="txt" data-time="${i}" value="${esc(s.times[i])}"></label>`).join('')}</div></section>`;
   h+=`<section><h4>요일별 시간표<small>과목은 비워도 돼요. '마지막'은 그날 마지막 교시예요</small></h4><div style="overflow-x:auto"><table class="ttbl"><thead><tr><th></th>${[1,2,3,4,5,6,7].map(i=>`<th>${i}교시</th>`).join('')}<th>마지막</th></tr></thead><tbody>${[1,2,3,4,5].map(w=>`<tr><th>${days[w-1]}</th>${[0,1,2,3,4,5,6].map(j=>`<td><input class="txt" data-subj="${w}-${j}" value="${esc((s.subj[w]||[])[j]||'')}" aria-label="${days[w-1]}요일 ${j+1}교시 과목"></td>`).join('')}<td><select data-last="${w}" aria-label="${days[w-1]}요일 마지막 교시">${[4,5,6,7].map(n=>`<option value="${n}" ${Number(s.last[w])===n?'selected':''}>${n}교시</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></section>`;
   const gone=DB.students.filter(x=>x.left&&x.left<=START_DAY).length;
   h+=`<section><h4>학생 명단<small>번호 고치기 · 전학 간 학생(전출) · 전학 온 학생(전입) · 엑셀로 바꾸기</small></h4><div class="brow"><button type="button" class="btn" data-m="roster">명단 고치기</button><span class="hint">재학 ${nowCount()}명${gone?` · 전출 ${gone}명`:''}</span></div></section>`;
@@ -1186,8 +1296,8 @@ document.addEventListener('click',e=>{
   if(a==='card')return openDrawer(Number(b.dataset.no));
   if(a==='recv'){
     const before=snap(),r=rec(Number(b.dataset.id));if(!r)return;
-    const k=b.dataset.what==='form'?'gotForm':'gotDocs';r[k]=!r[k];save();render();
-    const what=b.dataset.what==='form'?formWord(r):'서류';
+    const k={form:'gotForm',report:'gotReport'}[b.dataset.what]||'gotDocs';r[k]=!r[k];save();render();
+    const what=b.dataset.what==='form'?formWord(r):b.dataset.what==='report'?'보고서':'서류';
     toast(`${stu(r.no)?.name||''} ${what} ${r[k]?'받음으로 표시했어요':'안 받음으로 돌렸어요'}`,before);return;
   }
   if(a==='goday'){st.date=b.dataset.date;st.view='day';return renderBoard()}
@@ -1233,7 +1343,8 @@ document.addEventListener('click',e=>{
   if(a==='e-clear'){editRec(r=>{r.written=''});const i=$('#e-written');if(i)i.value='';return}
   if(a==='oppage'){
     const r=rec(st.focus);if(!r)return;
-    const key=b.dataset.w==='parent'?'opParent':'opTeacher',other=b.dataset.w==='parent'?'opTeacher':'opParent';
+    const KEY={parent:'opParent',teacher:'opTeacher',app:'opApp',rep:'opRep'},PAIR={parent:'teacher',teacher:'parent',app:'rep',rep:'app'};
+    const key=KEY[b.dataset.w],other=KEY[PAIR[b.dataset.w]];if(!key)return;
     if(r[key]!==false&&r[other]===false){toast('한 장은 남겨 두어야 해요');return}
     r[key]=r[key]===false;save();renderEdit();renderPaper();renderDocList();return;
   }
@@ -1267,7 +1378,7 @@ addEventListener('resize',()=>{
 const TOUR=[
   {sel:['#board .seg'],t:'하루(교시별) · 한 달(학생별)',p:'하루(교시별)는 나이스 화면처럼 교시별로 봐요. 한 달(학생별)에서는 학생별 횟수와 덜 받은 서류를 모아 봐요.'},
   {sel:['#grid tbody .name'],t:'이름을 누르면 입력',p:'이름을 누르면 그날 출결을 넣는 작은 창이 떠요. 구분과 종류만 고르고 저장하면 끝이에요.'},
-  {sel:['#tour-cell','#grid td.p:not(.off)'],t:'시각에 맞춰 교시가 채워져요',p:'지각·조퇴·결과는 넣은 시각에 맞춰 교시가 자동으로 체크돼요. 칸을 하나씩 눌러 더하거나 뺄 수 있어요.'},
+  {sel:['#tour-cell','#grid td.p:not(.off)'],t:'교시를 누르면 한 번에',p:'조퇴는 누른 교시부터 종례까지, 지각은 조회부터 누른 교시까지 한 번에 채워져요. 결과는 빠진 교시만 하나씩 눌러요.'},
   {sel:['[data-tour="status"]'],t:'받으면 눌러서 체크',p:'주황 점은 아직 덜 받은 신고서·서류예요. 받으면 한 번 누르세요.'},
   {sel:['#grid .rs-in'],t:'사유는 칸에서 바로',p:'사유 칸을 누르면 전에 쓴 사유가 목록으로 떠요. 골라 넣거나, ×로 목록에서 지울 수 있어요.'},
   {sel:['#tab-docs'],t:'서류함에서 인쇄',p:'넣은 출결은 서류함에 모여요. 우리 학교 양식 그대로 채워진 신고서를 골라서 한 번에 인쇄해요.'},

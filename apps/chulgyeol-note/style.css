@@ -519,6 +519,36 @@ td.p.anchored{box-shadow:inset 0 0 0 2px var(--focus)}
 .pg.op .r2{height:77.8mm}
 .pg.op .memo{text-align:left;vertical-align:top;padding:4mm 5mm;font-family:"Nanum Myeongjo","AppleMyungjo","Batang",serif;font-weight:700;font-size:13pt;line-height:1.8;white-space:pre-wrap}
 .pg.op .ot2{font-size:20pt;letter-spacing:.32em}
+/* 교외체험학습 신청서(통보서)·결과보고서 (학교 양식은 맑은 고딕 표) */
+.pg.trip{font-family:"Pretendard","Pretendard Variable","Malgun Gothic",sans-serif;font-size:10pt;line-height:1.3}
+.pg.trip .tp{position:absolute}
+.pg.trip .tt{width:100%;border-collapse:collapse;table-layout:fixed}
+.pg.trip .tt td{border:.25mm solid #000;text-align:center;vertical-align:middle;padding:.3mm .8mm;font-size:9.5pt;line-height:1.28;overflow:hidden;word-break:keep-all}
+.pg.trip .tt td.k{font-weight:700}
+.pg.trip .tt td.l{text-align:left;padding-left:2mm}
+.pg.trip .tt td.sm{font-size:9pt}
+.pg.trip .tt td small{font-size:7.8pt;font-weight:500}
+.pg.trip .tt td.ttl{font-weight:800;font-size:15pt;letter-spacing:-.03em}
+.pg.trip .tt td.nt{font-family:"Nanum Myeongjo",serif;font-size:8.8pt;letter-spacing:-.02em}
+.pg.trip .tv{font-family:"Nanum Myeongjo","AppleMyungjo","Batang",serif;font-weight:700;font-size:10.5pt}
+.pg.trip .tv.n{display:inline-block;min-width:5mm;text-align:center}
+.pg.trip .sgv{display:inline-block;min-width:28mm;text-align:center}
+.pg.trip td.sig{text-align:left;padding:2mm 8mm 2.5mm;font-family:"Nanum Myeongjo","AppleMyungjo","Batang",serif;font-weight:700;font-size:10pt;line-height:1.6}
+.pg.trip td.sig p,.pg.trip td.sig2 p{margin:0}
+.pg.trip td.sig .c,.pg.trip td.sig2 p{text-align:center}
+.pg.trip td.sig .r,.pg.trip td.sig2 .r{text-align:right}
+.pg.trip td.sig .to{font-size:12pt;margin-top:1mm}
+.pg.trip td.sig .big{font-size:11pt}
+.pg.trip td.sig2{line-height:1.75;padding:1.5mm 5mm}
+.pg.trip td.sig2 .l{text-align:left}
+.pg.trip .cut{margin:3mm 0 .5mm;text-align:center;font-family:"Nanum Myeongjo",serif;font-size:10.5pt;letter-spacing:-.04em;white-space:nowrap;overflow:hidden}
+.pg.trip .cut small{font-size:9.5pt;margin:0 1mm}
+.pg.trip .tt2{text-align:center;font-weight:700;font-size:12pt;margin:1mm 0 2mm}
+.pg.trip .notes{margin-top:2.5mm;font-family:"Nanum Myeongjo",serif;font-size:9.3pt;line-height:1.5}
+.pg.trip .notes p{margin:0 0 .6mm;padding-left:1.3em;text-indent:-1.3em}
+.pg.trip .form2{font-family:"Nanum Myeongjo",serif;font-size:11pt;margin-bottom:2mm}
+.pg.trip .note2{margin-top:3mm;font-family:"Nanum Myeongjo",serif;font-size:10pt}
+.trip-note b{color:var(--ink2)}
 
 /* 설정 */
 .modal-bg{position:fixed;inset:0;z-index:80;background:var(--veil);display:grid;place-items:center;padding:16px}
