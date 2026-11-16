@@ -22,7 +22,7 @@
     </nav>
     <div class="top-r">
       <span class="net" id="netState" hidden></span>
-      <span class="cls" id="cls"></span>
+      <button class="cls" id="cls" type="button" data-act="roster" title="학생 명단 고치기 (번호·전출·전입)"></button>
       <button class="ghost" type="button" id="guideBtn" data-act="guide">가이드 보기</button>
       <button class="ghost" type="button" id="setBtn" data-act="settings">설정</button>
     </div>
@@ -48,6 +48,7 @@
         <label for="paste-ta">명단 넣기<span>엑셀 파일을 고르거나, 이름을 붙여 넣으세요. 번호는 없어도 돼요</span></label>
         <div class="xl-row"><button class="btn" type="button" data-act="pick-xlsx" data-to="paste-ta">엑셀 파일 고르기</button><span class="hint">.xlsx · .xls · .csv — 여기로 끌어다 놓아도 돼요. 파일은 이 컴퓨터 안에서만 읽어요.</span></div>
         <textarea id="paste-ta" placeholder="강다온&#10;고은솔&#10;김나래&#10;… 이름만 붙여도 돼요 (번호가 있으면 1 강다온처럼)"></textarea>
+        <div class="rt-wrap" id="paste-table" hidden></div>
         <div class="paste-cls">
           <label>학년 <input id="paste-grade" class="txt sm" inputmode="numeric" maxlength="2"></label>
           <label>반 <input id="paste-cls" class="txt sm" inputmode="numeric" maxlength="2"></label>

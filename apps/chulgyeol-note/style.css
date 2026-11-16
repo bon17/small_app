@@ -92,7 +92,8 @@ button{font:inherit;color:inherit}
 .tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-11px;height:2px;border-radius:2px;background:var(--ink)}
 .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--todo);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
 .top-r{margin-left:auto;display:flex;align-items:center;gap:10px}
-.cls{color:var(--ink2);font-weight:500;white-space:nowrap;margin-right:4px}
+.cls{color:var(--ink2);font-weight:500;white-space:nowrap;margin-right:4px;border:0;background:none;padding:5px 8px;border-radius:8px;cursor:pointer;font:inherit;font-weight:500}
+.cls:hover{background:var(--sheet2);color:var(--ink)}
 .net{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--done);background:color-mix(in srgb,var(--done) 10%,var(--sheet));white-space:nowrap;cursor:default}
 .net::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .net.off{color:var(--todayInk);background:var(--today)}
@@ -126,7 +127,37 @@ button{font:inherit;color:inherit}
 .xl-row{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;margin-bottom:10px}
 .xl-row .btn{height:34px;padding:0 13px;font-size:13.5px}
 .xl-row .hint{margin:0}
-.paste.drag,textarea.drag{outline:2px dashed var(--focus);outline-offset:4px}
+.paste.drag,textarea.drag,.modal.drag{outline:2px dashed var(--focus);outline-offset:4px}
+.paste textarea.short{min-height:76px}
+.paste .rt-wrap{margin-top:10px;max-height:300px}
+
+/* 번호·이름 표 (첫 화면 명단, 학생 명단 창) */
+.rt-wrap{overflow:auto;border:1px solid var(--rule);border-radius:12px;background:var(--sheet)}
+.rt-wrap.tall{max-height:min(52vh,520px)}
+.rt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rt th{position:sticky;top:0;z-index:1;background:var(--sheet2);font-size:12px;font-weight:600;color:var(--ink3);text-align:left;padding:8px;border-bottom:1px solid var(--rule)}
+.rt td{padding:4px 8px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.rt tr:last-child td{border-bottom:0}
+.rt .txt{height:32px}
+.rt .txt.num{width:62px;text-align:center;padding:0 4px}
+.rt .txt.date{width:148px;height:30px;margin-left:6px;font-size:13px}
+.rt td.stc{white-space:nowrap}
+.rt td.acts{white-space:nowrap;text-align:right;width:1%}
+.rt tr.gone td{background:var(--sheet2)}
+.rt tr.gone input[data-f="name"]{color:var(--ink3)}
+.rt .addrow td{padding:6px 4px}
+.xdel{width:30px;height:30px;border:0;border-radius:8px;background:none;color:var(--ink3);font-size:17px;line-height:1;cursor:pointer}
+.xdel:hover{background:var(--badBg);color:var(--bad)}
+.btn.sm{height:30px;padding:0 10px;font-size:12.5px;font-weight:600;margin-left:4px}
+.btn.sure{background:var(--bad);border-color:var(--bad);color:#fff}
+.tag.gone{color:var(--ink2);background:var(--rule)}
+.tag.in{color:var(--okd);background:var(--okdBg)}
+.r-help{line-height:1.75;margin:12px 0 0;font-size:12.5px}
+.r-help b{color:var(--ink2)}
+.r-err{color:var(--bad);font-weight:600;font-size:13px}
+.stag{display:inline-block;margin-left:2px;padding:1px 5px;border-radius:5px;font-size:10.5px;font-weight:600;color:var(--ink2);background:var(--rule);white-space:nowrap;vertical-align:1px}
+.stag.in{color:var(--okd);background:var(--okdBg)}
+.month td.d.out{cursor:default;background:repeating-linear-gradient(45deg,transparent 0 4px,var(--rule) 4px 5px)}
 .paste-cls{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;color:var(--ink2);font-weight:600;font-size:13px}
 .paste-cls label{display:inline-flex;align-items:center;gap:6px}
 .paste-f{display:flex;align-items:center;gap:10px;margin-top:12px}

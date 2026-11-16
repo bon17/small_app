@@ -50,7 +50,7 @@ function migrate(d){
   out.settings.times=b.settings.times.map((t,i)=>(d.settings&&d.settings.times&&d.settings.times[i])||t);
   out.settings.last={...b.settings.last,...((d.settings||{}).last||{})};
   out.settings.subj={...b.settings.subj,...((d.settings||{}).subj||{})};
-  out.students=Array.isArray(d.students)?d.students.filter(s=>s&&s.name).map(s=>({no:Number(s.no),name:String(s.name)})):[];
+  out.students=Array.isArray(d.students)?d.students.filter(s=>s&&s.name).map(s=>{const o={no:Number(s.no),name:String(s.name)};if(s.left)o.left=String(s.left);if(s.joined)o.joined=String(s.joined);return o}):[];
   out.records=Array.isArray(d.records)?d.records.filter(r=>r&&r.start&&G[r.gubun]&&KINDS.includes(r.kind)).map(r=>({days:1,periods:[],time:'',reason:'',docs:[],gotForm:false,gotDocs:false,...r})):[];
   out.reasons=Array.isArray(d.reasons)?d.reasons.filter(x=>typeof x==='string'&&x.trim()):b.reasons;
   out.uid=Math.max(Number(d.uid)||1,...out.records.map(r=>r.id+1),1);
@@ -67,6 +67,10 @@ function save(){
 let DB=blankDB(), SAMPLE=false;
 const SET=()=>DB.settings;
 const stu=no=>DB.students.find(s=>s.no===no);
+/* 전입일부터 전출일 전날까지 우리 반 */
+const activeOn=(s,d)=>(!s.joined||d>=s.joined)&&(!s.left||d<s.left);
+const activeIn=(s,mo)=>monthDays(mo).some(d=>!isWE(d)&&activeOn(s,d));
+const nowCount=()=>DB.students.filter(s=>activeOn(s,START_DAY)).length;
 const rec=id=>DB.records.find(r=>r.id===id);
 
 /* 교시·시간표 */
@@ -119,7 +123,7 @@ function addReason(v){v=(v||'').trim();if(!v)return;DB.reasons=[v,...DB.reasons.
 
 /* 되돌리기 */
 let undoSnap=null;
-const snap=()=>JSON.parse(JSON.stringify({records:DB.records,reasons:DB.reasons}));
+const snap=()=>JSON.parse(JSON.stringify({records:DB.records,reasons:DB.reasons,students:DB.students}));
 
 /* ───────── 예시 반 ───────── */
 const NAMES=['강다온','고은솔','김나래','김민결','남하람','노유찬','류도아','문채윤','민시호','박가을','박이든','배소율','서하늘','손지안','송아린','신바다','안예솔','오로운','윤다빈','이새봄','이한결','임보람','장누리','정라온','조하율','최단비','한겨울','홍시원'];
@@ -151,6 +155,9 @@ function sampleDB(){
     R(3,b(5),'질병','결석',{reason:'감기',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
     R(14,b(5),'질병','조퇴',{periods:from(6,b(5)),time:'14:40',reason:'복통',docs:['진료확인서'],gotForm:true,gotDocs:true,printed:b(5)}),
   ];
+  // 전학 예시: 27번은 전출, 29번은 전입
+  const s27=d.students.find(s=>s.no===27);if(s27)s27.left=b(2);
+  d.students.push({no:29,name:'도하준',joined:b(3)});
   d.uid=id;
   DB=keep;
   return d;
@@ -168,7 +175,7 @@ function render(){
   $('#tab-board').classList.toggle('on',st.screen==='board');
   $('#tab-docs').classList.toggle('on',st.screen==='docs');
   const s=SET();
-  const who=[s.grade&&s.cls?`<b>${esc(s.grade)}학년 ${esc(s.cls)}반</b>`:'<b>우리 반</b>',`${DB.students.length}명`,s.teacher?`담임 ${esc(s.teacher)}`:''].filter(Boolean).join(' · ');
+  const who=[s.grade&&s.cls?`<b>${esc(s.grade)}학년 ${esc(s.cls)}반</b>`:'<b>우리 반</b>',`${nowCount()}명`,s.teacher?`담임 ${esc(s.teacher)}`:''].filter(Boolean).join(' · ');
   $('#cls').innerHTML=who;
   const o=owedCount();$('#owe-badge').textContent=o;$('#owe-badge').hidden=!o;
   if(st.screen==='board')renderBoard();
@@ -266,8 +273,42 @@ function rosterFromRows(rows){
 }
 const parseRoster=t=>rosterFromRows(textToRows(t)).list;
 const rosterSummary=r=>r.length?`${r.length}명 읽었어요 · ${r[0].no}번 ${r[0].name} ~ ${r[r.length-1].no}번 ${r[r.length-1].name}`:'';
-$('#paste-ta').addEventListener('input',e=>{
-  $('#paste-n').textContent=rosterSummary(parseRoster(e.target.value))||'한 줄에 한 명씩이에요.';
+/* 첫 화면 명단: 붙여 넣거나 엑셀을 고르면 아래 표에서 번호·이름을 고칠 수 있어요 */
+let pasteList=[];
+function rosterError(list){
+  const seen=new Map();
+  for(const s of list){
+    const name=String(s.name||'').trim();
+    if(!name)return '이름이 빈 줄이 있어요. 이름을 넣거나 ×로 빼 주세요.';
+    if(!(Number.isInteger(s.no)&&s.no>=1&&s.no<=99))return `${name}의 번호를 1~99 숫자로 넣어 주세요.`;
+    if(seen.has(s.no))return `${s.no}번이 겹쳐요 (${seen.get(s.no)}, ${name}). 번호를 고쳐 주세요.`;
+    seen.set(s.no,name);
+  }
+  return '';
+}
+function pasteStatus(){
+  const err=rosterError(pasteList);
+  const sorted=pasteList.slice().sort((a,b)=>a.no-b.no);
+  $('#paste-n').textContent=err||(pasteList.length?rosterSummary(sorted)+'. 표에서 번호·이름을 고칠 수 있어요.':'한 줄에 한 명씩이에요.');
+  $('#paste-n').classList.toggle('warn',!!err);
+}
+function renderPasteTable(focusLast){
+  const box=$('#paste-table');
+  $('#paste-ta').classList.toggle('short',pasteList.length>0);
+  if(!pasteList.length){box.innerHTML='';box.hidden=true;return}
+  box.hidden=false;
+  box.innerHTML=`<table class="rt"><thead><tr><th>번호</th><th>이름</th><th></th></tr></thead><tbody>${pasteList.map((s,i)=>`<tr data-i="${i}"><td><input type="number" class="txt num" min="1" max="99" data-pf="no" value="${Number.isFinite(s.no)?s.no:''}" aria-label="번호"></td><td><input class="txt" data-pf="name" value="${esc(s.name)}" aria-label="이름" placeholder="이름"></td><td class="acts"><button type="button" class="xdel" data-act="pdel" data-i="${i}" aria-label="${esc(s.name)} 빼기" title="빼기">×</button></td></tr>`).join('')}<tr class="addrow"><td colspan="3"><button type="button" class="btn link" data-act="padd">+ 한 명 더</button></td></tr></tbody></table>`;
+  if(focusLast){const ins=$$('#paste-table input[data-pf="name"]');ins[ins.length-1]?.focus()}
+}
+const pasteToText=()=>{$('#paste-ta').value=pasteList.map(s=>(Number.isFinite(s.no)?s.no:'')+'\t'+s.name).join('\n')};
+function setPasteList(list){pasteList=list.map(s=>({no:s.no,name:s.name}));renderPasteTable();pasteStatus()}
+$('#paste-ta').addEventListener('input',e=>{setPasteList(parseRoster(e.target.value))});
+$('#paste-table').addEventListener('input',e=>{
+  const t=e.target,tr=t.closest('tr[data-i]');if(!tr)return;
+  const s=pasteList[Number(tr.dataset.i)];if(!s)return;
+  if(t.dataset.pf==='no')s.no=t.value===''?NaN:Number(t.value);
+  if(t.dataset.pf==='name')s.name=t.value;
+  pasteToText();pasteStatus();
 });
 
 /* 엑셀 파일: 이 컴퓨터 안에서만 읽어요(서버로 보내지 않아요). xlsx·xls는 SheetJS(vendor/), csv는 직접 읽어요. */
@@ -293,18 +334,18 @@ async function readRosterFile(file){
   return best;
 }
 async function handleRosterFile(f,target){
-  const toPaste=target==='paste-ta',ta=$('#'+target),msg=toPaste?$('#paste-n'):$('#s-roster-msg');
-  if(!ta||!msg)return;
+  const toRoster=target==='rmodal',msg=toRoster?$('#r-msg'):$('#paste-n');
+  if(!msg)return;
+  msg.classList.remove('warn');
   msg.textContent=`${f.name} 읽는 중…`;
   try{
     const res=await readRosterFile(f);
     if(!res.list.length){msg.textContent=`${f.name}에서 이름을 찾지 못했어요. '성명' 또는 '이름' 칸이 있는지 확인해 주세요.`;return}
-    ta.value=res.list.map(s=>s.no+'\t'+s.name).join('\n');
-    if(toPaste){
-      if(res.grade&&!$('#paste-grade').value)$('#paste-grade').value=res.grade;
-      if(res.cls&&!$('#paste-cls').value)$('#paste-cls').value=res.cls;
-    }
-    msg.textContent=`엑셀에서 ${rosterSummary(res.list)}. 아래 칸에서 확인하고 고칠 수 있어요.`;
+    if(toRoster){rosterFromExcel(res.list);$('#r-msg').textContent=`엑셀에서 ${rosterSummary(res.list)}. 저장을 눌러야 바뀌어요.`;return}
+    setPasteList(res.list);pasteToText();
+    if(res.grade&&!$('#paste-grade').value)$('#paste-grade').value=res.grade;
+    if(res.cls&&!$('#paste-cls').value)$('#paste-cls').value=res.cls;
+    msg.textContent=`엑셀에서 ${rosterSummary(res.list)}. 아래 표에서 번호·이름을 고칠 수 있어요.`;
   }catch(err){
     msg.textContent=navigator.onLine||window.XLSX?`${f.name}을 읽지 못했어요. 엑셀(.xlsx·.xls)이나 .csv 파일인지 확인해 주세요.`:'엑셀을 읽는 도구를 아직 못 받았어요. 인터넷이 될 때 다시 해 주세요.';
   }
@@ -380,6 +421,7 @@ function renderDay(){
   h+='<th class="c-st">신고서</th><th class="c-st">서류</th><th class="c-rs">사유</th></tr></thead><tbody>';
   let tourCell=false,tourStatus=false,rows=0;
   for(const s of DB.students){
+    if(!activeOn(s,s0))continue;
     const r=recOn(s.no,s0);
     if(st.only&&!r) continue;
     rows++;
@@ -427,12 +469,15 @@ function renderMonth(){
   h+='<th class="cnt">학생별 한 달</th><th class="owecol">챙길 서류</th></tr></thead><tbody>';
   let rows=0;
   for(const s of DB.students){
+    if(!activeIn(s,st.month))continue;
     const rs=DB.records.filter(r=>r.no===s.no&&inMonth(r,st.month)).sort((a,b)=>a.start<b.start?-1:1);
     if(st.only&&!rs.length) continue;
     rows++;
-    h+=`<tr><td class="c-no">${s.no}</td><td class="c-nm"><button type="button" class="name" data-act="card" data-no="${s.no}" title="${esc(s.name)} 한 달 기록 보기">${esc(s.name)}</button></td>`;
+    const stag=s.left&&s.left.startsWith(st.month)?`<span class="stag" title="${md(s.left)}부터 전출">전출 ${mdS(s.left)}</span>`:s.joined&&s.joined.startsWith(st.month)?`<span class="stag in" title="${md(s.joined)}부터 전입">전입 ${mdS(s.joined)}</span>`:'';
+    h+=`<tr><td class="c-no">${s.no}</td><td class="c-nm"><button type="button" class="name" data-act="card" data-no="${s.no}" title="${esc(s.name)} 한 달 기록 보기">${esc(s.name)}</button>${stag}</td>`;
     for(const d of days){
       if(isWE(d)){h+='<td class="we"></td>';continue}
+      if(!activeOn(s,d)){h+=`<td class="d out" title="${s.left&&d>=s.left?'전출 뒤':'전입 전'}"></td>`;continue}
       const r=rs.find(x=>covers(x,d));
       const cls=`d${d===TODAY?' today':''}${r?'':' empty'}`;
       if(r){
@@ -597,7 +642,7 @@ function toast(msg,undo){
 }
 $('#toast-undo').addEventListener('click',()=>{
   if(!undoSnap)return;
-  DB.records=undoSnap.records;DB.reasons=undoSnap.reasons;undoSnap=null;
+  DB.records=undoSnap.records;DB.reasons=undoSnap.reasons;if(undoSnap.students)DB.students=undoSnap.students;undoSnap=null;
   save();render();refreshReasonChips();toast('되돌렸어요');
 });
 
@@ -992,7 +1037,8 @@ function openSettings(){
     <label>담임 이름<input class="txt" id="s-teacher" value="${esc(s.teacher)}"></label></div></section>`;
   h+=`<section><h4>교시 시작 시각<small>지각·조퇴·결과를 넣을 때 이 시각으로 교시를 채워요</small></h4><div class="sgrid">${PER.slice(0,8).map((p,i)=>`<label>${p}<input type="time" class="txt" data-time="${i}" value="${esc(s.times[i])}"></label>`).join('')}</div></section>`;
   h+=`<section><h4>요일별 시간표<small>과목은 비워도 돼요. '마지막'은 그날 마지막 교시예요</small></h4><div style="overflow-x:auto"><table class="ttbl"><thead><tr><th></th>${[1,2,3,4,5,6,7].map(i=>`<th>${i}교시</th>`).join('')}<th>마지막</th></tr></thead><tbody>${[1,2,3,4,5].map(w=>`<tr><th>${days[w-1]}</th>${[0,1,2,3,4,5,6].map(j=>`<td><input class="txt" data-subj="${w}-${j}" value="${esc((s.subj[w]||[])[j]||'')}" aria-label="${days[w-1]}요일 ${j+1}교시 과목"></td>`).join('')}<td><select data-last="${w}" aria-label="${days[w-1]}요일 마지막 교시">${[4,5,6,7].map(n=>`<option value="${n}" ${Number(s.last[w])===n?'selected':''}>${n}교시</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></section>`;
-  h+=`<section><h4>학생 명단<small>한 줄에 한 명 (번호 이름). 번호가 같으면 기록이 그대로 이어져요</small></h4><div class="xl-row"><button type="button" class="btn" data-m="xlsx">엑셀 파일로 바꾸기</button><span class="hint" id="s-roster-msg">엑셀 파일을 아래 칸에 끌어다 놓아도 돼요. 저장을 눌러야 바뀌어요.</span></div><textarea id="s-roster">${esc(DB.students.map(x=>x.no+'\t'+x.name).join('\n'))}</textarea></section>`;
+  const gone=DB.students.filter(x=>x.left&&x.left<=START_DAY).length;
+  h+=`<section><h4>학생 명단<small>번호 고치기 · 전학 간 학생(전출) · 전학 온 학생(전입) · 엑셀로 바꾸기</small></h4><div class="brow"><button type="button" class="btn" data-m="roster">명단 고치기</button><span class="hint">재학 ${nowCount()}명${gone?` · 전출 ${gone}명`:''}</span></div></section>`;
   h+=`<section><h4>백업<small>기록은 이 컴퓨터에만 있어요. 가끔 받아 두세요</small></h4><div class="brow"><button type="button" class="btn" data-m="export">백업 파일 받기</button><button type="button" class="btn" data-m="import">백업 불러오기</button><input type="file" id="s-import" accept=".json,application/json" hidden><span class="hint" id="s-msg"></span></div></section>`;
   h+=`<section><h4>모두 지우기</h4><div class="brow"><button type="button" class="btn danger" data-m="wipe">명단과 기록 모두 지우기</button><span class="hint">되돌릴 수 없어요. 먼저 백업을 받아 두세요.</span></div></section>`;
   h+=`</div><div class="modal-f"><button type="button" class="btn" data-m="close">닫기</button><button type="button" class="btn primary" data-m="save">저장</button></div></div></div>`;
@@ -1000,7 +1046,6 @@ function openSettings(){
   const m=$('#modal');
   m.addEventListener('click',onModal);
   $('#s-import').addEventListener('change',importFile);
-  dropZone($('#s-roster'),'s-roster');
   $('#s-school').focus();
 }
 function closeSettings(){$('#modal')?.remove()}
@@ -1009,16 +1054,15 @@ function onModal(e){
   const b=e.target.closest('[data-m]');if(!b)return;
   const a=b.dataset.m;
   if(a==='close')return closeSettings();
-  if(a==='save'){
+  const applySettings=()=>{
     const s=SET();
     s.school=$('#s-school').value.trim();s.grade=$('#s-grade').value.trim();s.cls=$('#s-cls').value.trim();s.teacher=$('#s-teacher').value.trim();
     $$('#modal [data-time]').forEach(i=>{if(i.value)s.times[Number(i.dataset.time)]=i.value});
     $$('#modal [data-subj]').forEach(i=>{const[w,j]=i.dataset.subj.split('-').map(Number);s.subj[w]=s.subj[w]||['','','','','','',''];s.subj[w][j]=i.value.trim()});
     $$('#modal [data-last]').forEach(i=>{s.last[Number(i.dataset.last)]=Number(i.value)});
-    const roster=parseRoster($('#s-roster').value);
-    if(roster.length)DB.students=roster;
-    save();closeSettings();render();toast(SAMPLE?'예시 반 설정을 바꿨어요 (저장은 안 돼요)':'설정을 저장했어요');return;
-  }
+    save();
+  };
+  if(a==='save'){applySettings();closeSettings();render();toast(SAMPLE?'예시 반 설정을 바꿨어요 (저장은 안 돼요)':'설정을 저장했어요');return}
   if(a==='export'){
     if(PREVIEW){$('#s-msg').textContent='미리 보기 화면에서는 파일을 내려받을 수 없어요. 실제 앱 주소에서 받아 주세요.';return}
     const blob=new Blob([JSON.stringify(DB,null,1)],{type:'application/json'});
@@ -1028,7 +1072,7 @@ function onModal(e){
     $('#s-msg').textContent='백업 파일을 내려받았어요.';return;
   }
   if(a==='import')return $('#s-import').click();
-  if(a==='xlsx'){pickTarget='s-roster';return $('#xlsx-in').click()}
+  if(a==='roster'){applySettings();closeSettings();render();return openRoster()} // 고친 설정은 먼저 저장하고 명단 창으로
   if(a==='wipe'){
     if(!b.classList.contains('sure')){b.classList.add('sure');b.textContent='정말 지울까요? 한 번 더 누르세요';return}
     try{localStorage.removeItem(STORE)}catch(err){}
@@ -1048,9 +1092,92 @@ function importFile(e){
   rd.readAsText(f);
 }
 
+/* ───────── 학생 명단 (번호 고치기·전출·전입) ─────────
+   - 번호를 바꾸면 그 학생의 출결 기록도 새 번호로 옮겨요.
+   - 전출: 전출일부터 출결판에서 빠지고, 지난 기록·서류는 그대로 남아요(번호는 비워 둬요).
+   - 전입: 마지막 번호 다음 번호로, 전입일부터 출결판에 나와요.
+   - 지우기: 잘못 넣은 학생만. 그 학생의 기록도 같이 지워져요. */
+let RW=null,rwRemoved=new Set();
+function openRoster(){
+  closePop();closeDrawer();closeDrop();closeSettings();
+  RW=DB.students.map(s=>({...s,orig:s.no}));rwRemoved=new Set();
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="rmodal"><div class="modal" role="dialog" aria-label="학생 명단"><div class="modal-h"><h3>학생 명단</h3><button type="button" class="icon" data-r="close" aria-label="닫기">×</button></div><div class="modal-b" id="r-body"></div><div class="modal-f"><span class="r-err" id="r-err"></span><span class="spacer"></span><button type="button" class="btn" data-r="close">취소</button><button type="button" class="btn primary" data-r="save">저장</button></div></div></div>`);
+  const m=$('#rmodal');
+  m.addEventListener('click',onRoster);
+  m.addEventListener('input',onRosterInput);
+  dropZone($('#rmodal .modal'),'rmodal');
+  drawRoster();
+}
+function closeRoster(){$('#rmodal')?.remove();RW=null}
+function drawRoster(focusLast){
+  const act=RW.filter(r=>!r.left).length,gone=RW.length-act;
+  const recCount=no=>DB.records.filter(x=>x.no===no).length;
+  let h=`<div class="xl-row"><button type="button" class="btn" data-r="add">+ 전학 온 학생 추가</button><button type="button" class="btn" data-r="xlsx">엑셀 파일로 바꾸기</button><span class="hint" id="r-msg">재학 ${act}명${gone?` · 전출 ${gone}명`:''} · 엑셀 파일을 여기로 끌어다 놓아도 돼요</span></div>`;
+  h+='<div class="rt-wrap tall"><table class="rt"><thead><tr><th>번호</th><th>이름</th><th>상태</th><th></th></tr></thead><tbody>';
+  RW.forEach((r,i)=>{
+    let stc;
+    if(r.left)stc=`<span class="tag gone">전출</span><input type="date" class="txt date" data-f="left" value="${esc(r.left)}" aria-label="${esc(r.name)} 전출일" title="이날부터 출결판에서 빠져요">`;
+    else if(r.joined)stc=`<span class="tag in">전입</span><input type="date" class="txt date" data-f="joined" value="${esc(r.joined)}" aria-label="${esc(r.name)} 전입일" title="이날부터 출결판에 나와요">`;
+    else stc='<span class="na">재학</span>';
+    const n=r.orig!=null?recCount(r.orig):0;
+    const acts=(r.left?'<button type="button" class="btn sm" data-r="back">다시 재학</button>':'<button type="button" class="btn sm" data-r="leave">전출 처리</button>')
+      +`<button type="button" class="btn sm quiet" data-r="del" data-n="${n}">지우기</button>`;
+    h+=`<tr data-i="${i}" class="${r.left?'gone':''}"><td><input type="number" class="txt num" min="1" max="99" data-f="no" value="${Number.isFinite(r.no)?r.no:''}" aria-label="번호"></td><td><input class="txt" data-f="name" value="${esc(r.name)}" aria-label="이름" placeholder="이름"></td><td class="stc">${stc}</td><td class="acts">${acts}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  h+='<p class="hint r-help">· 번호를 바꾸면 그 학생의 출결 기록도 새 번호로 같이 옮겨져요.<br>· <b>전출 처리</b>: 전출일부터 출결판에서 빠져요. 지난 출결 기록과 서류는 그대로 남고, 번호는 비워 둬요.<br>· <b>전학 온 학생 추가</b>: 마지막 번호 다음 번호로 들어가고, 전입일부터 출결판에 나와요.<br>· <b>지우기</b>는 잘못 넣은 학생을 없앨 때만 써요. 그 학생의 기록도 같이 지워져요.</p>';
+  $('#r-body').innerHTML=h;
+  if(focusLast){const ins=$$('#r-body input[data-f="name"]');const last=ins[ins.length-1];if(last){last.focus();last.scrollIntoView({block:'nearest'})}}
+}
+function onRosterInput(e){
+  const t=e.target,tr=t.closest('tr[data-i]');if(!tr||!RW)return;
+  const r=RW[Number(tr.dataset.i)];if(!r)return;
+  const f=t.dataset.f;
+  if(f==='no')r.no=t.value===''?NaN:Number(t.value);
+  else if(f==='name')r.name=t.value;
+  else if(f==='left')r.left=t.value;
+  else if(f==='joined')r.joined=t.value;
+  $('#r-err').textContent='';
+}
+function rosterFromExcel(list){
+  // 엑셀로 바꾸기: 번호가 같은 학생은 기록과 전입·전출이 그대로 이어져요
+  RW=list.map(s=>{const old=DB.students.find(o=>o.no===s.no);const r={no:s.no,name:s.name,orig:old?old.no:null};if(old&&old.left)r.left=old.left;if(old&&old.joined)r.joined=old.joined;return r});
+  rwRemoved=new Set();drawRoster();
+}
+function onRoster(e){
+  e.stopPropagation();
+  const b=e.target.closest('[data-r]');if(!b||!RW)return;
+  const a=b.dataset.r,tr=b.closest('tr[data-i]'),i=tr?Number(tr.dataset.i):-1;
+  if(a==='close')return closeRoster();
+  if(a==='save')return saveRoster();
+  if(a==='add'){const max=RW.reduce((m,r)=>Math.max(m,Number.isFinite(r.no)?r.no:0),0);RW.push({no:max+1,name:'',joined:START_DAY,orig:null});return drawRoster(true)}
+  if(a==='xlsx'){pickTarget='rmodal';return $('#xlsx-in').click()}
+  if(a==='leave'){RW[i].left=START_DAY;return drawRoster()}
+  if(a==='back'){delete RW[i].left;return drawRoster()}
+  if(a==='del'){
+    const n=Number(b.dataset.n);
+    if(n&&!b.classList.contains('sure')){b.classList.add('sure');b.textContent=`정말요? 기록 ${n}건도 지워져요`;return}
+    if(RW[i].orig!=null)rwRemoved.add(RW[i].orig);
+    RW.splice(i,1);return drawRoster();
+  }
+}
+function saveRoster(){
+  const list=RW.map(r=>({...r,name:String(r.name||'').trim()}));
+  let err=rosterError(list);
+  if(!err&&!list.length)err='학생이 한 명은 있어야 해요.';
+  if(!err){const bad=list.find(r=>r.left&&r.joined&&r.left<=r.joined);if(bad)err=`${bad.name}의 전출일이 전입일보다 빨라요.`}
+  if(err){$('#r-err').textContent=err;return}
+  const before=snap();
+  const map=new Map();list.forEach(r=>{if(r.orig!=null)map.set(r.orig,r.no)});
+  DB.records=DB.records.filter(x=>!rwRemoved.has(x.no)).map(x=>map.has(x.no)?{...x,no:map.get(x.no)}:x);
+  DB.students=list.map(r=>{const o={no:r.no,name:r.name};if(r.left)o.left=r.left;if(r.joined)o.joined=r.joined;return o}).sort((a,b)=>a.no-b.no);
+  save();closeRoster();render();
+  toast('학생 명단을 저장했어요',before);
+}
+
 /* ───────── 클릭 ───────── */
 document.addEventListener('click',e=>{
-  if(e.target.closest('#pop')||e.target.closest('#modal')||e.target.closest('#rsdrop'))return;
+  if(e.target.closest('#pop')||e.target.closest('#modal')||e.target.closest('#rmodal')||e.target.closest('#rsdrop'))return;
   if(draft&&!e.target.closest('#drawer [data-dr]'))closePop();
   if(!e.target.closest('.menu-wrap'))$('#blankmenu').hidden=true;
   const b=e.target.closest('[data-act]');if(!b)return;
@@ -1084,10 +1211,14 @@ document.addEventListener('click',e=>{
   }
   if(a==='paste'){$('#paste').hidden=false;$('#paste-ta').focus();return}
   if(a==='pick-xlsx'){pickTarget=b.dataset.to||'paste-ta';return $('#xlsx-in').click()}
+  if(a==='pdel'){pasteList.splice(Number(b.dataset.i),1);pasteToText();renderPasteTable();pasteStatus();return}
+  if(a==='padd'){const max=pasteList.reduce((m,s)=>Math.max(m,Number.isFinite(s.no)?s.no:0),0);pasteList.push({no:max+1,name:''});pasteToText();renderPasteTable(true);pasteStatus();return}
+  if(a==='roster')return openRoster();
   if(a==='build'){
-    const r=parseRoster($('#paste-ta').value);
-    if(!r.length){$('#paste-n').textContent='이름을 한 명 이상 붙여 넣어 주세요.';$('#paste-ta').focus();return}
-    DB=blankDB();DB.students=r;
+    if(!pasteList.length){$('#paste-n').textContent='이름을 한 명 이상 넣어 주세요.';$('#paste-ta').focus();return}
+    const err=rosterError(pasteList);
+    if(err){$('#paste-n').textContent=err;$('#paste-n').classList.add('warn');return}
+    DB=blankDB();DB.students=pasteList.map(s=>({no:s.no,name:s.name.trim()})).sort((a,b)=>a.no-b.no);
     DB.settings.grade=$('#paste-grade').value.trim();DB.settings.cls=$('#paste-cls').value.trim();DB.settings.teacher=$('#paste-teacher').value.trim();
     SAMPLE=false;save();return enterBoard();
   }
@@ -1115,6 +1246,7 @@ $$('#board .seg button').forEach(b=>b.addEventListener('click',()=>{
 $$('#dfilter button').forEach(b=>b.addEventListener('click',()=>{st.dfilter=b.dataset.f;renderDocs()}));
 document.addEventListener('keydown',e=>{
   if(tour){if(e.key==='Escape')endTour();if(e.key==='ArrowRight')nextTour(1);if(e.key==='ArrowLeft')nextTour(-1);return}
+  if($('#rmodal')){if(e.key==='Escape')closeRoster();return}
   if($('#modal')){if(e.key==='Escape')closeSettings();return}
   const t=e.target;
   if(!draft){if(e.key==='Escape'&&drawerNo!=null)closeDrawer();return}
