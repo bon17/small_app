@@ -128,8 +128,7 @@ const HANDLERS = {
   padState: function (req) { auth_(req.token, 'teacher'); return padView_(load_()); },
   startLesson: function (req, p) {
     auth_(req.token, 'teacher');
-    return withLock_(function () {
-      const db = load_();
+    const db = withLog_(function (db) {
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const subject = String(p.subject || '').slice(0, 20);
@@ -142,38 +141,45 @@ const HANDLERS = {
         rows.push(row_(T.START, '', '', { lesson: id, period: Number(p.period) || 0, subject: subject, date: today_() }, p.actionId));
         append_(rows, db);
       }
-      return padView_(db);
     });
+    return padView_(db);
   },
-  award: function (req, p) { auth_(req.token, 'teacher'); return withLock_(function () { return award_(p); }); },
-  penalty: function (req, p) { auth_(req.token, 'teacher'); return withLock_(function () { return penalty_(p); }); },
+  award: function (req, p) {
+    auth_(req.token, 'teacher');
+    let result;
+    const db = withLog_(function (db) { result = award_(p, db); });
+    result.view = padView_(db);
+    return result;
+  },
+  penalty: function (req, p) {
+    auth_(req.token, 'teacher');
+    const db = withLog_(function (db) { penalty_(p, db); });
+    return { view: padView_(db) };
+  },
   undo: function (req, p) {
     auth_(req.token, 'teacher');
-    return withLock_(function () {
-      const db = load_();
+    const db = withLog_(function (db) {
       cancelRows_(function (r) { return r.action === p.target && r.type !== T.START && r.type !== T.END; }, db);
-      return padView_(db);
     });
+    return padView_(db);
   },
   endLesson: function (req, p) {
     auth_(req.token, 'teacher');
-    return withLock_(function () {
-      const db = load_();
-      const st = compute_(db);
-      const L = st.lessons[p.lesson];
+    const db = withLog_(function (db) {
+      const L = compute_(db).lessons[p.lesson];
       if (!L) throw err_('LESSON', '수업을 찾을 수 없어요.');
       if (!L.ended && !db.done[p.actionId]) append_([row_(T.END, '', '', { lesson: L.id }, p.actionId)], db);
-      return { summary: lessonSummary_(compute_(db), p.lesson), view: padView_(db) };
     });
+    return { summary: lessonSummary_(compute_(db), p.lesson), view: padView_(db) };
   },
 
   /* 담임 관리 */
   adminLogin: function (req, p) { const token = login_('admin', p.pin); return { token: token, view: adminView_(load_()) }; },
   adminState: function (req) { auth_(req.token, 'admin'); return adminView_(load_()); },
-  saveRoster: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveRoster_(p.rows || []); return adminView_(load_()); }); },
+  saveRoster: function (req, p) { auth_(req.token, 'admin'); withLock_(function () { saveRoster_(p.rows || []); }); return adminView_(load_()); },
   saveSettings: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
+    withLock_(function () {
       const before = readSettings_().adminPin;
       saveSettings_(p.settings || {});
       if (readSettings_().adminPin !== before) {
@@ -182,51 +188,42 @@ const HANDLERS = {
         keep[req.token] = Date.now();
         saveAdminTokens_(keep);
       }
-      return adminView_(load_());
     });
+    return adminView_(load_());
   },
-  setStock: function (req, p) { auth_(req.token, 'admin'); return withLock_(function () { saveStock_(p.items || []); return adminView_(load_()); }); },
+  setStock: function (req, p) { auth_(req.token, 'admin'); withLock_(function () { saveStock_(p.items || []); }); return adminView_(load_()); },
   exchange: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       const t = compute_(db).tickets[p.ticket];
       if (!t) throw err_('BAD', '교환권을 찾을 수 없어요.');
       if (!t.exchanged && !db.done[p.actionId]) append_([row_(T.EXCHANGE, t.student, '', { ticket: t.no }, p.actionId)], db);
-      return adminView_(db);
-    });
+    }));
   },
   markPrinted: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       const tickets = compute_(db).tickets;
       const list = (p.tickets || []).map(String).filter(function (n) { return tickets[n]; });
       if (list.length && !db.done[p.actionId]) append_([row_(T.PRINT, '', list.length, { tickets: list, reprint: !!p.reprint }, p.actionId)], db);
-      return adminView_(db);
-    });
+    }));
   },
   rewardDone: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       if (!db.done[p.actionId]) append_([row_(T.REWARD, '', Number(p.at) || 0, { at: Number(p.at) || 0 }, p.actionId)], db);
-      return adminView_(db);
-    });
+    }));
   },
   deletePraise: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       const target = db.log.filter(function (r) { return r.id === p.id && r.type === T.PRAISE; })[0];
       if (target) cancelRows_(function (r) { return r.id === target.id || (target.action && r.action === target.action && r.type === T.LUCKY); }, db);
-      return adminView_(db);
-    });
+    }));
   },
   cancelEvent: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       const target = db.log.filter(function (r) { return r.id === p.id; })[0];
       if (!target) throw err_('BAD', '기록을 찾을 수 없어요.');
       if (target.type === T.START || target.type === T.END || target.type === T.RULES) throw err_('BAD', '이 기록은 취소할 수 없어요.');
@@ -235,39 +232,36 @@ const HANDLERS = {
         // 칭찬 스탬프를 취소하면 같은 순간에 같이 생긴 황금 붕어빵·되찾기도 함께 취소해요.
         return target.type === T.AWARD && target.action && r.action === target.action && r.no === target.no && (r.type === T.GOLDEN || r.type === T.RECOVER);
       }, db);
-      return adminView_(db);
-    });
+    }));
   },
   adjust: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
-      const db = load_();
+    return adminView_(withLog_(function (db) {
       const no = Number(p.no);
       const amount = Math.round(Number(p.amount));
       if (!studentByNo_(db, no)) throw err_('BAD', '학생을 골라 주세요.');
       if (!amount || Math.abs(amount) > 100) throw err_('BAD', '개수를 1~100 사이로 넣어 주세요.');
       if (!db.done[p.actionId]) append_([row_(T.ADJUST, no, amount, { reason: String(p.reason || '').slice(0, 40) }, p.actionId)], db);
-      return adminView_(db);
-    });
+    }));
   },
   regenCode: function (req, p) {
     auth_(req.token, 'admin');
-    return withLock_(function () {
+    withLock_(function () {
       const sh = sheet_(SHEET.students, STUDENT_HEAD);
       const vals = sh.getDataRange().getValues();
       const used = {};
       vals.forEach(function (r) { used[String(r[2])] = true; });
       for (let i = 1; i < vals.length; i++) if (Number(vals[i][0]) === Number(p.no)) sh.getRange(i + 1, 3).setValue(newCode_(used));
-      return adminView_(load_());
     });
+    return adminView_(load_());
   },
 
   /* 학생 (개인 링크) */
   studentState: function (req) { const db = load_(); return studentView_(db, me_(db, req)); },
   stamp: function (req, p) {
-    return withLock_(function () {
-      const db = load_();
-      const me = me_(db, req);
+    const base = loadBase_();
+    const me = me_(base, req);
+    const db = withLog_(function (db) {
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const s = compute_(db).students[me.no];
@@ -281,13 +275,13 @@ const HANDLERS = {
         if (s.unstamped < n) throw err_('NOT_ENOUGH', '반죽이 모자라요.');
         append_([row_(T.STAMP, me.no, n, { coupon: c }, p.actionId)], db);
       }
-      return studentView_(db, me);
-    });
+    }, base);
+    return studentView_(db, me);
   },
   chooseFlavor: function (req, p) {
-    return withLock_(function () {
-      const db = load_();
-      const me = me_(db, req);
+    const base = loadBase_();
+    const me = me_(base, req);
+    const db = withLog_(function (db) {
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const st = compute_(db);
@@ -300,13 +294,13 @@ const HANDLERS = {
         const ticket = (c === 'bung' ? '붕-' : '호-') + ('00' + (maxTicketSeq_(db.log, c) + 1)).slice(-3);
         append_([row_(T.FLAVOR, me.no, '', { coupon: c, flavor: flavor, ticket: ticket }, p.actionId)], db);
       }
-      return studentView_(db, me);
-    });
+    }, base);
+    return studentView_(db, me);
   },
   donate: function (req, p) {
-    return withLock_(function () {
-      const db = load_();
-      const me = me_(db, req);
+    const base = loadBase_();
+    const me = me_(base, req);
+    const db = withLog_(function (db) {
       if (!db.done[p.actionId]) {
         const n = Math.floor(Number(p.n) || 0);
         const s = compute_(db).students[me.no];
@@ -314,14 +308,14 @@ const HANDLERS = {
         if (s.unstamped < n) throw err_('NOT_ENOUGH', '아직 안 찍은 반죽만 기부할 수 있어요.');
         append_([row_(T.DONATE, me.no, n, {}, p.actionId)], db);
       }
-      return studentView_(db, me);
-    });
+    }, base);
+    return studentView_(db, me);
   },
   sendPraise: function (req, p) {
-    return withLock_(function () {
-      const db = load_();
-      const me = me_(db, req);
-      let lucky = false;
+    const base = loadBase_();
+    const me = me_(base, req);
+    let lucky = false;
+    const db = withLog_(function (db) {
       if (!db.done[p.actionId]) {
         const cfg = db.settings;
         const st = compute_(db);
@@ -337,26 +331,25 @@ const HANDLERS = {
       } else {
         lucky = db.log.some(function (r) { return r.action === p.actionId && r.type === T.LUCKY && !r.cancelled; });
       }
-      const view = studentView_(db, me);
-      view.lucky = lucky;
-      return view;
-    });
+    }, base);
+    const view = studentView_(db, me);
+    view.lucky = lucky;
+    return view;
   },
   rulesRead: function (req, p) {
-    return withLock_(function () {
-      const db = load_();
-      const me = me_(db, req);
+    const base = loadBase_();
+    const me = me_(base, req);
+    const db = withLog_(function (db) {
       const version = rulesVersion_(db.settings);
       if (compute_(db).students[me.no].rulesVersion !== version) append_([row_(T.RULES, me.no, '', { version: version }, p.actionId)], db);
-      return studentView_(db, me);
-    });
+    }, base);
+    return studentView_(db, me);
   },
 };
 
 /* ───────────────────────── 패드: 스탬프 주기·빼기 ───────────────────────── */
 
-function award_(p) {
-  const db = load_();
+function award_(p, db) {
   const cfg = db.settings;
   const result = { applied: [], skipped: [], golden: [], recovered: [] };
   if (db.done[p.actionId]) {
@@ -366,7 +359,6 @@ function award_(p) {
       if (r.type === T.GOLDEN) result.golden.push({ no: r.no, name: nameOf_(db, r.no), amount: r.amount });
       if (r.type === T.RECOVER) result.recovered.push(r.no);
     });
-    result.view = padView_(db);
     return result;
   }
   const st = compute_(db);
@@ -412,12 +404,10 @@ function award_(p) {
     }
   });
   if (rows.length) append_(rows, db);
-  result.view = padView_(db);
   return result;
 }
 
-function penalty_(p) {
-  const db = load_();
+function penalty_(p, db) {
   if (!db.done[p.actionId]) {
     const cfg = db.settings;
     const st = compute_(db);
@@ -430,7 +420,6 @@ function penalty_(p) {
     const reason = bulk ? '전체' : String(p.reason || '기타').slice(0, 30);
     append_(targets.map(function (no) { return row_(T.PENALTY, no, amount, { lesson: L.id, reason: reason, bulk: bulk }, p.actionId); }), db);
   }
-  return { view: padView_(db) };
 }
 
 function lessonFor_(st, cfg, id) {
@@ -1046,15 +1035,20 @@ function parseLogRow_(r) {
   };
 }
 
-function load_() {
-  const settings = readSettings_();
-  const students = readStudents_();
+/** 설정·명단·재고: 잘 안 바뀌어서 저장 차례(자물쇠) 밖에서 읽어요. */
+function loadBase_() {
   const stock = {};
   readStockRows_().forEach(function (r) { stock[r.coupon + '|' + r.flavor] = (stock[r.coupon + '|' + r.flavor] || 0) + r.stocked; });
+  return { settings: readSettings_(), students: readStudents_(), stock: stock };
+}
+
+/** 설정·명단·재고 + 기록. base를 주면 그것을 쓰고 기록만 읽어요. */
+function load_(base) {
+  base = base || loadBase_();
   const log = readLog_();
   const done = {};
   log.forEach(function (r) { if (r.action) done[r.action] = true; });
-  return { settings: settings, students: students, stock: stock, log: log, done: done };
+  return { settings: base.settings, students: base.students, stock: base.stock, log: log, done: done };
 }
 
 function row_(type, no, amount, detail, action) {
@@ -1157,10 +1151,32 @@ function normName_(v) {
   return s.replace(/\s+/g, '').toLowerCase().slice(0, 40);
 }
 
+/**
+ * 저장은 한 번에 하나씩만 해요(같은 반죽을 두 번 쓰지 않게). 그동안 다른 저장은 줄을 서요.
+ * 학생 폰·교실 패드·담임판의 저장이 한꺼번에 몰리면 줄이 길어져서, 차례 동안에는 꼭 필요한 일만 해요(withLog_).
+ * 차례를 넘기기 전에 쓴 줄을 시트에 확실히 넣어요(flush). 그래야 다음 차례가 최신 기록을 읽어요.
+ */
+const LOCK_WAIT_MS = 25000;
 function withLock_(fn) {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) throw err_('BUSY', '지금 다른 저장이 많아요. 잠시 뒤에 다시 눌러 주세요.');
-  try { return fn(); } finally { lock.releaseLock(); }
+  if (!lock.tryLock(LOCK_WAIT_MS)) throw err_('BUSY', '지금 저장이 한꺼번에 몰렸어요. 잠시 뒤에 다시 눌러 주세요.');
+  try { return fn(); } finally {
+    try { SpreadsheetApp.flush(); } catch (e) {}
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 기록에 쓰는 동작의 틀: 설정·명단·재고는 차례 밖에서 읽고(base), 차례 안에서는 기록 읽기 → 확인 → 쓰기(write)만 해요.
+ * 쓴 줄까지 들어간 db를 돌려줘요. 응답 화면은 부른 쪽에서 차례를 넘긴 뒤에 만들어요.
+ */
+function withLog_(write, base) {
+  base = base || loadBase_();
+  return withLock_(function () {
+    const db = load_(base);
+    write(db);
+    return db;
+  });
 }
 
 /* ───────────────────────── 작은 도구 ───────────────────────── */

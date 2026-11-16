@@ -420,6 +420,21 @@ function call(action, payload) {
   });
 }
 
+/**
+ * 저장 요청: 저장이 한꺼번에 몰려 서버가 '차례를 못 받았어요'(BUSY)나 연결 문제(NET)를 주면,
+ * 같은 저장을 같은 번호(actionId)로 몇 번 더 보내요. 서버가 번호를 보고 한 번만 저장해요.
+ */
+async function callSave(action, payload, tries) {
+  const max = tries == null ? 4 : tries;
+  for (let i = 0; ; i++) {
+    try { return await call(action, payload); } catch (e) {
+      if ((e.code !== 'BUSY' && e.code !== 'NET') || i >= max) throw e;
+      if (i === 0) toast('저장이 몰려서 차례를 기다리고 있어요. 저절로 다시 저장해요…');
+      await new Promise((r) => setTimeout(r, 1500 + i * 1500));
+    }
+  }
+}
+
 let toastTimer;
 function toast(msg, kind) {
   const t = $('#toast');
@@ -1203,7 +1218,7 @@ Object.assign(ACTS, {
     if (Pad.starting) return;
     Pad.starting = true; Pad.render(); // 누르자마자 '수업을 여는 중…'
     try {
-      Pad.setView(await call('startLesson', { period: Pad.setup.period > 0 ? Pad.setup.period : 0, subject: Pad.setup.subject, actionId: uid() }));
+      Pad.setView(await callSave('startLesson', { period: Pad.setup.period > 0 ? Pad.setup.period : 0, subject: Pad.setup.subject, actionId: uid() }));
       Pad.phase = 'class'; Pad.sel.clear(); Pad.undo = [];
       Sound.play('ding');
     } catch (e) { toast(e.msg, 'warn'); }
@@ -1259,7 +1274,7 @@ Object.assign(ACTS, {
     const wait = () => new Promise((r) => { const t = setInterval(() => { if (!Pad.queue.length) { clearInterval(t); r(); } }, 200); });
     await wait();
     try {
-      const r = await call('endLesson', { lesson: Pad.view.lesson.id, actionId: uid() });
+      const r = await callSave('endLesson', { lesson: Pad.view.lesson.id, actionId: uid() });
       Pad.summary = r.summary; Pad.setView(r.view); Pad.phase = 'summary';
     } catch (e) { toast(e.msg, 'warn'); }
     Pad.render();
@@ -1484,7 +1499,7 @@ const Stu = {
         this.set(v);
         this.render();
       } catch (e) {
-        if (e.code === 'NET' && tries < 3) { tries++; await new Promise((r) => setTimeout(r, 1500 * tries)); continue; }
+        if ((e.code === 'NET' || e.code === 'BUSY') && tries < 4) { tries++; await new Promise((r) => setTimeout(r, 1500 * tries)); continue; } // 같은 묶음(같은 번호)으로 다시 보내요
         this.stampBatch = null; this.stampQ = []; ok = false;
         toast((e.msg || '저장하지 못했어요.') + ' 다시 해 주세요.', 'warn');
         try { this.set(await call('studentState')); } catch (e2) {}
@@ -1522,7 +1537,7 @@ const Stu = {
     if (!(await this.stampIdle())) return; // 찍기가 저장된 뒤에 골라요
     try {
       const before = this.v.tickets.length;
-      this.set(await call('chooseFlavor', { coupon: c, flavor: f, actionId: uid() }));
+      this.set(await callSave('chooseFlavor', { coupon: c, flavor: f, actionId: uid() }));
       this.render();
       const t = this.v.tickets[this.v.tickets.length - 1];
       if (this.v.tickets.length > before && t) {
@@ -1586,7 +1601,7 @@ Object.assign(ACTS, {
   },
   async stuRulesOk() {
     closeModal();
-    try { Stu.set(await call('rulesRead', { actionId: uid() })); } catch (e) {}
+    try { Stu.set(await callSave('rulesRead', { actionId: uid() })); } catch (e) {}
     Stu.render(); Sound.play('yay');
   },
   stuCoupon(t) { Stu.coupon(t.dataset.c); },
@@ -1608,7 +1623,7 @@ Object.assign(ACTS, {
     closeModal();
     const ok = await confirmBox('정말 기부할까요?', '<p style="font-size:18px">반죽 <b>' + n + '개</b>를 저금통에 넣어요.<br><b class="minus">기부한 스탬프는 돌려받을 수 없어요.</b></p>', n + '개 기부', 'red');
     if (!ok || !(await Stu.stampIdle())) return;
-    try { Stu.set(await call('donate', { n, actionId: uid() })); Sound.play('coin'); fx('pig', '🐷 고마워요! ' + n + '개 기부', 2200); Stu.render(); Stu.celebrate(); } catch (e) { toast(e.msg, 'warn'); }
+    try { Stu.set(await callSave('donate', { n, actionId: uid() })); Sound.play('coin'); fx('pig', '🐷 고마워요! ' + n + '개 기부', 2200); Stu.render(); Stu.celebrate(); } catch (e) { toast(e.msg, 'warn'); }
   },
   stuPraise() { Stu.praise(); },
   stuPraiseTo(t) {
@@ -1621,7 +1636,7 @@ Object.assign(ACTS, {
     $('#prSend').disabled = true;
     await Stu.stampIdle();
     try {
-      const v = await call('sendPraise', { to: Stu.praiseTo, text, actionId: uid() });
+      const v = await callSave('sendPraise', { to: Stu.praiseTo, text, actionId: uid() });
       Stu.set(v); closeModal(); Stu.render();
       Sound.play('stamp');
       if (v.lucky) { Sound.play('gold'); fx('gold', '🍀 행운 스탬프가 왔어요! +1', 3000); } else toast('💌 칭찬을 보냈어요!', 'good');
@@ -1685,7 +1700,7 @@ const Adm = {
   setV(v) { this.v = v; saved.set('wss:adminView', v); },
   async reload() { try { this.setV(await call('adminState')); this.render(); } catch (e) { toast(e.msg, 'warn'); if (e.code === 'AUTH') { this.token = ''; this.v = null; saved.del('wss:adminView'); this.render(); } } },
   async run(action, payload, okMsg) {
-    try { this.setV(await call(action, Object.assign({ actionId: uid() }, payload || {}))); this.render(); if (okMsg) toast(okMsg, 'good'); return true; } catch (e) { toast(e.msg, 'warn'); return false; }
+    try { this.setV(await callSave(action, Object.assign({ actionId: uid() }, payload || {}))); this.render(); if (okMsg) toast(okMsg, 'good'); return true; } catch (e) { toast(e.msg, 'warn'); return false; }
   },
   render() {
     if (!this.v) {
@@ -1851,7 +1866,12 @@ Object.assign(ACTS, {
     if (!(await confirmBox('이 기록을 취소할까요?', '<p>줄은 남고 계산에서만 빠져요. 칭찬 스탬프를 취소하면 같이 생긴 황금·되찾기도 함께 취소돼요.</p>', '취소하기'))) return;
     Adm.run('cancelEvent', { id: t.dataset.id }, '취소했어요.');
   },
-  admAdjust() { Adm.run('adjust', { no: Number($('#adjNo').value), amount: Number($('#adjN').value), reason: $('#adjWhy').value }, '적용했어요.'); },
+  async admAdjust(t) {
+    if (t.disabled) return;
+    t.disabled = true; t.textContent = '저장 중…'; // 서버가 1~3초 걸려요. 두 번 눌리지 않게요.
+    const ok = await Adm.run('adjust', { no: Number($('#adjNo').value), amount: Number($('#adjN').value), reason: $('#adjWhy').value }, '적용했어요.');
+    if (!ok && document.body.contains(t)) { t.disabled = false; t.textContent = '적용'; }
+  },
   admRoster() {
     const rows = [];
     let auto = 1;

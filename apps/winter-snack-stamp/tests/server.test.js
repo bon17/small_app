@@ -455,6 +455,47 @@ test('교실 패드·담임 동작은 기록 시트를 한 번만 읽고, 응답
   assert.ok(al.token && al.view && al.view.students.length === 5);
 });
 
+test('저장 차례(자물쇠) 동안에는 기록 시트만 한 번 읽고, 차례를 넘기기 전에 시트에 확실히 써요 (저장이 몰려도 줄이 짧게)', () => {
+  const { LOCK } = require('./gas-mock');
+  const c = setupClass({ settings: { cells: { bung: 5, hop: 45 } } });
+  c.stock([{ coupon: 'bung', flavor: '팥', stocked: 3 }]);
+  const T = { token: c.teacher }, A = { token: c.admin };
+  const inLock = (label, fn) => {
+    LOCK.reads = []; LOCK.flushedBeforeRelease = true;
+    const out = fn();
+    const other = LOCK.reads.filter((n) => n !== '기록');
+    assert.deepEqual(other, [], label + ': 차례 안에서 ' + other.join(', ') + ' 시트를 읽었어요 (차례 밖에서 읽어야 줄이 짧아요)');
+    assert.ok(LOCK.reads.length <= 1, label + ': 차례 안에서 기록을 ' + LOCK.reads.length + '번 읽었어요');
+    assert.ok(LOCK.flushedBeforeRelease, label + ': 차례를 넘기기 전에 flush 하지 않았어요');
+    assert.equal(LOCK.held, false, label + ': 차례를 넘기지 않았어요');
+    return out;
+  };
+  const L = inLock('수업 시작', () => c.app.ok('startLesson', { subject: '수학', period: 2, actionId: aid() }, T)).lesson.id;
+  inLock('스탬프 주기', () => c.app.ok('award', { lesson: L, tool: 'extra', students: [1, 2], amount: 9, actionId: aid() }, T));
+  const ap = aid();
+  inLock('빼기', () => c.app.ok('penalty', { lesson: L, students: [3], amount: 1, reason: '잠', actionId: ap }, T));
+  inLock('되돌리기', () => c.app.ok('undo', { target: ap, lesson: L, actionId: aid() }, T));
+  inLock('학생 찍기', () => c.student(1, 'stamp', { coupon: 'bung', n: 5 }));
+  inLock('학생 맛 고르기', () => c.student(1, 'chooseFlavor', { coupon: 'bung', flavor: '팥' }));
+  inLock('학생 기부', () => c.student(2, 'donate', { n: 2 }));
+  inLock('학생 칭찬', () => c.student(2, 'sendPraise', { to: 3, text: '수학 시간에 모르는 문제를 친절하게 알려 줘서 고마워' }));
+  inLock('학생 규칙 읽기', () => c.student(3, 'rulesRead', {}));
+  inLock('수업 마치기', () => c.app.ok('endLesson', { lesson: L, actionId: aid() }, T));
+  const v = inLock('담임 직접 더하기', () => c.app.ok('adjust', { no: 4, amount: 7, reason: '봉사', actionId: aid() }, A));
+  assert.equal(v.students.find((s) => s.no === 4).unstamped, 7, '직접 더하기가 화면에 바로 보여요');
+  const no = v.tickets[0].no;
+  inLock('출력 표시', () => c.app.ok('markPrinted', { tickets: [no], actionId: aid() }, A));
+  inLock('교환 완료', () => c.app.ok('exchange', { ticket: no, actionId: aid() }, A));
+  inLock('보상 완료', () => c.app.ok('rewardDone', { at: 200, actionId: aid() }, A));
+  const id = c.adminView().log.find((x) => x.type === '조정').id;
+  inLock('기록 취소', () => c.app.ok('cancelEvent', { id }, A));
+  // 틀린 학생 코드는 줄을 서지 않아요(차례를 잡지 않아요).
+  LOCK.reads = [];
+  const bad = c.app.call('stamp', { coupon: 'bung', n: 1, actionId: aid() }, { code: '0000', name: c.names[1] });
+  assert.equal(bad.ok, false);
+  assert.deepEqual(LOCK.reads, []);
+});
+
 test('웹앱 밖에서 구글이 열리지 않는 /exec 주소(편집용 번호)를 줘도 메뉴·학생 링크는 웹앱이 열릴 때 본 주소를 써요', () => {
   const app = loadApp();
   const good = app.web.url; // 웹앱이 열릴 때(doGet) 구글이 알려 주는 바른 주소

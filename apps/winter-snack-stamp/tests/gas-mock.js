@@ -8,6 +8,8 @@ const vm = require('vm');
 const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
+/** 자물쇠 흉내: 지금 잡혀 있는지, 잡힌 동안 읽은 시트, 풀기 전에 flush 했는지 적어요 (줄 서는 시간 테스트용). */
+const LOCK = { held: false, reads: [], flushedBeforeRelease: true };
 
 function colIndex(letters) {
   let n = 0;
@@ -19,6 +21,7 @@ class Range {
   constructor(sheet, row, col, rows, cols) { Object.assign(this, { sheet, row, col, rows, cols }); }
   getValues() {
     this.sheet.reads = (this.sheet.reads || 0) + 1; // 시트를 몇 번 읽었는지 세요 (속도 테스트용)
+    if (LOCK.held) LOCK.reads.push(this.sheet.name); // 저장 차례(자물쇠) 안에서 읽은 시트
     const out = [];
     for (let r = 0; r < this.rows; r++) {
       const line = [];
@@ -99,11 +102,15 @@ function loadApp(opts = {}) {
   const sandbox = {
     console,
     Math: MathMock,
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, getActive: () => ss, getUi: () => ui },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss, getActive: () => ss, getUi: () => ui, flush: () => { LOCK.flushed = true; } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props.has(k) ? props.get(k) : null), setProperty: (k, v) => props.set(k, String(v)) }) },
     Utilities: { formatDate, getUuid: () => crypto.randomUUID() },
     CacheService: { getScriptCache: () => ({ get: (k) => (cache.has(k) ? cache.get(k) : null), put: (k, v) => cache.set(k, String(v)), remove: (k) => cache.delete(k) }) },
-    LockService: { getScriptLock: () => ({ tryLock: () => true, waitLock: () => {}, releaseLock: () => {} }) },
+    LockService: { getScriptLock: () => ({
+      tryLock: () => { LOCK.held = true; LOCK.flushed = false; return true; },
+      waitLock: () => { LOCK.held = true; LOCK.flushed = false; },
+      releaseLock: () => { if (!LOCK.flushed) LOCK.flushedBeforeRelease = false; LOCK.held = false; },
+    }) },
     ScriptApp: { getService: () => ({ getUrl: () => web.url }) },
     HtmlService: {
       // 진짜 Apps Script처럼 /* 주석 */을 지운 내용을 돌려줘요.
@@ -149,4 +156,4 @@ function loadApp(opts = {}) {
 let seq = 0;
 function aid() { seq += 1; return 'act' + seq + '_' + Math.random().toString(36).slice(2, 7); }
 
-module.exports = { loadApp, aid };
+module.exports = { loadApp, aid, LOCK };

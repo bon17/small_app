@@ -283,6 +283,23 @@ async function main() {
     await adm.waitForTimeout(300);
     await shot(adm, n);
   }
+  // 직접 더하기: 저장이 몰려 서버가 두 번 '차례를 못 받았어요'(BUSY)라고 해도 저절로 다시 보내서 한 번만 저장돼요.
+  await adm.click('[data-act="admTab"][data-t="log"]');
+  await adm.waitForSelector('#adjNo');
+  await adm.evaluate(() => {
+    const orig = window.__mockApi; let busy = 0;
+    window.__mockApi = (req) => (req.action === 'adjust' && busy++ < 2 ? Promise.resolve({ ok: false, code: 'BUSY', msg: '지금 저장이 한꺼번에 몰렸어요.' }) : orig(req));
+  });
+  const adjBefore = app.log().filter((r) => r.type === '조정').length;
+  await adm.selectOption('#adjNo', '6');
+  await adm.fill('#adjN', '4');
+  await adm.fill('#adjWhy', '봉사 활동');
+  await adm.click('[data-act="admAdjust"]');
+  if (!(await adm.$eval('[data-act="admAdjust"]', (b) => b.disabled && /저장 중/.test(b.textContent)))) throw new Error('적용을 누르면 바로 "저장 중…"이 떠야 해요');
+  await adm.waitForFunction(() => /적용했어요/.test(document.getElementById('toast').textContent), null, { timeout: 15000 });
+  const adjRows = app.log().filter((r) => r.type === '조정');
+  if (adjRows.length !== adjBefore + 1 || adjRows[adjRows.length - 1].amount !== 4) throw new Error('서버가 바빠도 직접 더하기는 한 번만 저장돼야 해요 (' + (adjRows.length - adjBefore) + '번)');
+  await shot(adm, '24b-admin-adjust-after-busy');
   // 교환권 출력: 재출력 버튼·표시가 없고, 이미 출력한 것도 모두 골라 몇 번이든 다시 뽑아요.
   // 인쇄 창이 뜰 때 주아 글꼴의 '붕'·'빵' 조각과 도장 그림이 이미 받아져 있어야 해요.
   await adm.evaluate(() => {
