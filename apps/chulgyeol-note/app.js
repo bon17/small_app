@@ -1079,11 +1079,14 @@ function formPages(r,blankType){
   }
   return [reportPage(v)];
 }
-/* 기간 줄: 결석(또는 빈 양식)은 ~부터 / ~까지 ( )일간, 지각·조퇴·결과는 한 줄 */
+/* 기간 줄 (학교 양식대로 늘 두 줄): ○월 ○일부터 / ○월 ○일까지 ( )일간
+   지각·조퇴·결과는 같은 날짜로 두 줄을 쓰고, 둘째 줄 끝이 ( )교시 까지(지각)·( )교시 부터(조퇴)·( )교시(결과) */
 function periodLine(v){
-  if(!v.kind||v.kind==='결석')return `<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일부터</div>
-<div class="a sp" style="top:106.3mm;left:54mm">${v.L.y||v.F.y}년${V(v.L.m,11)}월${V(v.L.d,8)}일까지 (${V(v.n,9)})일간</div>`;
-  return `<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일&nbsp;&nbsp;(${V(v.ptxt,[...v.ptxt].length>3?24:12)})${pword(v.ptxt)}${ptail(v.kind)}</div>`;
+  const line1=`<div class="a sp" style="top:98.6mm;left:54mm">${v.F.y}년${V(v.F.m,11)}월${V(v.F.d,8)}일부터</div>`;
+  const head=`<div class="a sp" style="top:106.3mm;left:54mm">${v.L.y||v.F.y}년${V(v.L.m,11)}월${V(v.L.d,8)}일까지 (`;
+  if(!v.kind||v.kind==='결석')return `${line1}\n${head}${V(v.n,9)})일간</div>`;
+  const t=ptail(v.kind);
+  return `${line1}\n${head}${V(v.ptxt,Math.max(9,Math.round([...v.ptxt].length*3.2+5)))})${pword(v.ptxt)}${t?' '+t:''}</div>`;
 }
 function reportPage(v){
   const ttl=`${v.type}<small>【${KINDS.map(k=>k===v.kind?`<span class="ck">${k}</span>`:k).join(', ')}】</small>신고서`;
