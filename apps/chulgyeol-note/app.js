@@ -186,7 +186,7 @@ function render(){
   if(st.screen==='docs')renderDocs();
   if(drawerNo!=null)drawDrawer();
 }
-function go(screen){closePop();closeDrop();st.screen=screen;render();scrollTo(0,0)}
+function go(screen){closePop();closeDrop();closeCal();st.screen=screen;render();scrollTo(0,0)}
 
 /* ───────── 첫 화면 ───────── */
 function renderHero(){
@@ -1299,13 +1299,64 @@ function saveRoster(){
   toast('학생 명단을 저장했어요',before);
 }
 
+/* ───────── 작은 달력: 날짜를 누르면 그날 출결판으로 ───────── */
+let calMonth=null,calAnchor=null;
+function openCal(anchor){
+  if($('#calpop'))return closeCal();
+  closePop();closeDrop();
+  calAnchor=anchor;calMonth=st.view==='day'?monthOf(st.date):st.month;
+  const c=document.createElement('div');c.id='calpop';c.className='calpop';c.setAttribute('role','dialog');c.setAttribute('aria-label','달력에서 날짜 고르기');
+  document.body.append(c);
+  c.addEventListener('click',onCal);
+  anchor.setAttribute('aria-expanded','true');
+  drawCal();placeCal();
+  ($('#calpop .cal-d.sel')||$('#calpop .cal-d.today')||$('#calpop .cal-d:not(:disabled)'))?.focus({preventScroll:true});
+}
+function closeCal(){$('#calpop')?.remove();if(calAnchor)calAnchor.setAttribute('aria-expanded','false');calAnchor=null}
+function drawCal(){
+  const c=$('#calpop');if(!c)return;
+  const[y,m]=calMonth.split('-').map(Number);
+  const first=new Date(y,m-1,1).getDay(),n=new Date(y,m,0).getDate();
+  const has=new Set();
+  DB.records.forEach(r=>{const s=stu(r.no);spanOf(r).forEach(d=>{if(d.startsWith(calMonth)&&(!s||activeOn(s,d)))has.add(d)})});
+  let h=`<div class="cal-h"><button type="button" class="icon" data-cal="prev" aria-label="지난달">‹</button><b>${y}년 ${m}월</b><button type="button" class="icon" data-cal="next" aria-label="다음 달">›</button></div><div class="cal-g">`;
+  h+=[...WD].map(w=>`<span class="wd">${w}</span>`).join('');
+  for(let i=0;i<first;i++)h+='<span></span>';
+  for(let d=1;d<=n;d++){
+    const s=S(new Date(y,m-1,d)),we=isWE(s);
+    const cls=['cal-d',s===TODAY?'today':'',st.view==='day'&&s===st.date?'sel':'',has.has(s)?'has':''].filter(Boolean).join(' ');
+    h+=`<button type="button" class="${cls}" ${we?'disabled title="주말"':`data-cal="go" data-date="${s}"`} aria-label="${md(s)}${has.has(s)?', 출결 기록 있음':''}">${d}</button>`;
+  }
+  h+=`</div><div class="cal-f"><span><i></i>출결 기록이 있는 날</span><button type="button" class="small" data-cal="today">오늘</button></div>`;
+  c.innerHTML=h;
+}
+function placeCal(){
+  const c=$('#calpop');if(!c||!calAnchor)return;
+  const r=calAnchor.getBoundingClientRect(),w=c.offsetWidth;
+  c.style.left=Math.max(12,Math.min(r.left,innerWidth-w-12))+'px';
+  c.style.top=(r.bottom+8)+'px';
+}
+function onCal(e){
+  e.stopPropagation();
+  const b=e.target.closest('[data-cal]');if(!b)return;
+  const a=b.dataset.cal;
+  if(a==='prev'||a==='next'){calMonth=shiftMonth(calMonth,a==='prev'?-1:1);return drawCal()}
+  if(a==='go'||a==='today'){
+    const d=a==='today'?START_DAY:b.dataset.date;
+    closeCal();st.date=d;st.month=monthOf(d);st.view='day';renderBoard();
+  }
+}
+addEventListener('scroll',()=>placeCal(),true);
+
 /* ───────── 클릭 ───────── */
 document.addEventListener('click',e=>{
   if(e.target.closest('#pop')||e.target.closest('#modal')||e.target.closest('#rmodal')||e.target.closest('#rsdrop'))return;
   if(draft&&!e.target.closest('#drawer [data-dr]'))closePop();
   if(!e.target.closest('.menu-wrap'))$('#blankmenu').hidden=true;
+  if(!e.target.closest('[data-act="cal"]'))closeCal();
   const b=e.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act;
+  if(a==='cal')return openCal(b);
   if(a==='open')return openPop(Number(b.dataset.no),b.dataset.date,b.dataset.p,b);
   if(a==='card')return openDrawer(Number(b.dataset.no));
   if(a==='recv'){
@@ -1371,6 +1422,7 @@ $$('#board .seg button').forEach(b=>b.addEventListener('click',()=>{
 $$('#dfilter button').forEach(b=>b.addEventListener('click',()=>{st.dfilter=b.dataset.f;renderDocs()}));
 document.addEventListener('keydown',e=>{
   if(tour){if(e.key==='Escape')endTour();if(e.key==='ArrowRight')nextTour(1);if(e.key==='ArrowLeft')nextTour(-1);return}
+  if($('#calpop')&&e.key==='Escape'){const a=calAnchor;closeCal();a?.focus();return}
   if($('#rmodal')){if(e.key==='Escape')closeRoster();return}
   if($('#modal')){if(e.key==='Escape')closeSettings();return}
   const t=e.target;
@@ -1383,6 +1435,7 @@ document.addEventListener('keydown',e=>{
 let rsT;
 addEventListener('resize',()=>{
   if(draft){popX=null;place()}
+  placeCal();
   if(tour)showTour();
   if(!drop.hidden)placeDrop();
   clearTimeout(rsT);rsT=setTimeout(()=>{if(st.screen==='docs')renderPaper();if(st.screen==='hero')fitArt()},120);
